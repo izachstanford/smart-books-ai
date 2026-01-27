@@ -1,0 +1,22 @@
+# SmartBooks AI - Python Dependencies
+# Data Processing
+pandas==2.0.3
+numpy==1.24.3
+
+# Embeddings & ML
+sentence-transformers==2.2.2
+torch>=2.0.0
+scikit-learn==1.3.1
+
+# Vector Store & RAG
+chromadb==0.4.15
+llama-index==0.9.48
+llama-index-vector-stores-chroma==0.1.6
+llama-index-embeddings-huggingface==0.1.4
+
+# Dimensionality Reduction (for 3D Galaxy View)
+umap-learn==0.5.4
+
+# Utilities
+tqdm==4.66.1
+python-dotenv==1.0.0

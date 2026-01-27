@@ -1,0 +1,159 @@
+/* SmartBooks AI - Global Styles */
+/* Futuristic Galactic Theme */
+
+:root {
+  /* Core Colors */
+  --color-void: #050510;
+  --color-deep-space: #0a0a1a;
+  --color-nebula-dark: #0d1025;
+  --color-nebula: #151535;
+  --color-nebula-light: #1e1e4a;
+  
+  /* Accent Colors */
+  --color-star-gold: #ffd93d;
+  --color-star-gold-dim: #b39a2b;
+  --color-blue-giant: #4da6ff;
+  --color-blue-giant-dim: #2d7acc;
+  --color-white-dwarf: #a8b4c4;
+  --color-supernova: #ff6b9d;
+  --color-cosmic-purple: #9d4edd;
+  --color-aurora: #00f5d4;
+  
+  /* UI Colors */
+  --color-text-primary: #e8ecf4;
+  --color-text-secondary: #8892a8;
+  --color-text-muted: #5a6478;
+  --color-border: rgba(138, 148, 168, 0.15);
+  --color-border-hover: rgba(138, 148, 168, 0.3);
+  
+  /* Gradients */
+  --gradient-nebula: linear-gradient(135deg, var(--color-deep-space) 0%, var(--color-nebula-dark) 50%, var(--color-nebula) 100%);
+  --gradient-card: linear-gradient(180deg, rgba(30, 30, 74, 0.6) 0%, rgba(21, 21, 53, 0.4) 100%);
+  --gradient-glow: radial-gradient(circle at center, var(--color-cosmic-purple) 0%, transparent 70%);
+  
+  /* Typography */
+  --font-main: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  
+  /* Border Radius */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+  
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+  
+  /* Shadows */
+  --shadow-glow: 0 0 20px rgba(157, 78, 221, 0.3);
+  --shadow-glow-strong: 0 0 40px rgba(157, 78, 221, 0.5);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-main);
+  background: var(--color-void);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-deep-space);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-nebula-light);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-cosmic-purple);
+}
+
+/* Selection */
+::selection {
+  background: var(--color-cosmic-purple);
+  color: white;
+}
+
+/* Links */
+a {
+  color: var(--color-blue-giant);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--color-aurora);
+}
+
+/* Focus States */
+:focus-visible {
+  outline: 2px solid var(--color-cosmic-purple);
+  outline-offset: 2px;
+}
+
+/* Utility Classes */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Star field background animation */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(157, 78, 221, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(157, 78, 221, 0.6); }
+}
+
+@keyframes rotate-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
