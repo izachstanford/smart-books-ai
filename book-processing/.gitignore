@@ -1,0 +1,5 @@
+# Ignore generated/intermediate files
+*.csv
+enrichment_cache.json
+archive/
+outputs/

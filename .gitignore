@@ -49,6 +49,8 @@ data/books_1.Best_Books_Ever.csv
 # Public data folder (copied from data/)
 public/data/
 
+# Note: book-processing/ has its own .gitignore for intermediate files
+
 # Misc
 .cache/
 *.tgz
