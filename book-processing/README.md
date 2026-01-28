@@ -24,7 +24,10 @@ python book-processing/generate_embeddings_v2.py
 python book-processing/build_index_v2.py
 python book-processing/precompute_analytics_v2.py
 
-# 3. Copy outputs to public folder
+# 3. Apply exclusions (filter out sensitive books)
+python book-processing/apply_exclusions.py
+
+# 4. Copy outputs to public folder
 cp data/*.json public/data/
 ```
 
@@ -38,12 +41,16 @@ cp data/*.json public/data/
 - **`generate_embeddings_v2.py`** - Creates vector embeddings with Sentence Transformers
 - **`build_index_v2.py`** - Builds ChromaDB vector index
 - **`precompute_analytics_v2.py`** - Generates analytics and 3D Galaxy coordinates
+- **`apply_exclusions.py`** - Filters out sensitive books before publishing
 
 ### Data Files
 - **`enrichment_cache.json`** - API response cache (2MB, reusable)
 - **`book_records_v4_enriched.csv`** - Final enriched dataset (~10MB)
 - **`enrichment_queue_v1.csv`** - Books needing API enrichment
 - **`book_records_v3_backfilled_local.csv`** - Base merged dataset
+
+### Config Files (⚠️ not tracked in git)
+- **`exclusions.json`** - Rules for filtering out sensitive books
 
 ### Outputs (copied to `../data/`)
 - `library_with_embeddings.json` - All books with embeddings (47MB)
@@ -102,6 +109,28 @@ cp data/*.json public/data/
 **Output**: 
 - `../data/analytics_data.json`
 - `../data/galaxy_coordinates.json`
+
+### 6. Apply Exclusions (Optional)
+**Purpose**: Filter out sensitive books before publishing to live site.
+
+**Config**: `exclusions.json` (⚠️ not tracked in git)
+
+```json
+{
+  "rules": {
+    "exclude_no_date_read": true,   // Exclude read books without date
+    "exclude_one_star": true,       // Exclude 1-star books
+    "exclude_unread": false         // Keep unread books
+  },
+  "exclude_titles": ["Book Title"],
+  "exclude_authors": ["Author Name"],
+  "exclude_ids": ["isbn:123", "gr:456"]
+}
+```
+
+**Run**: `python apply_exclusions.py`
+
+**Output**: Filters all 3 JSON files in `../data/` and recalculates analytics.
 
 ---
 

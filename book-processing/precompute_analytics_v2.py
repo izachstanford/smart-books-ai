@@ -153,6 +153,7 @@ def run_pipeline():
                 'my_rating': book.get('my_rating', 0),
                 'shelf': book.get('shelf', 'unread'),
                 'is_read': book.get('is_read', False),
+                'date_read': book.get('date_read'),  # Added for filtering/sorting
                 'cover_url': book.get('cover_url'),
                 'genres': parse_genres(book.get('genres', '[]'))[:3],
                 'genre_primary': book.get('genre_primary', 'Unknown'),

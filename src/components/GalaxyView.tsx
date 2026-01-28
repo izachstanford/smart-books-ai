@@ -1,10 +1,96 @@
-import React, { useRef, useState, useMemo, Suspense } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import React, { useRef, useState, useMemo, Suspense, useEffect } from 'react';
+import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Html, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import { GalaxyPoint } from '../App';
-import { RotateCcw, Eye, EyeOff, Info, BookOpen, Table, Maximize2 } from 'lucide-react';
+import { RotateCcw, Eye, EyeOff, Info, BookOpen, Table, Maximize2, X, Search, ChevronDown, Check } from 'lucide-react';
 import BookTable from './BookTable';
+
+// Searchable dropdown component
+interface SearchableSelectProps {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+  placeholder?: string;
+}
+
+const SearchableSelect: React.FC<SearchableSelectProps> = ({ label, value, options, onChange, placeholder = "Search..." }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+        setSearchTerm('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+  
+  const filteredOptions = useMemo(() => {
+    if (!searchTerm) return options;
+    const term = searchTerm.toLowerCase();
+    return options.filter(opt => opt.label.toLowerCase().includes(term));
+  }, [options, searchTerm]);
+  
+  const selectedLabel = options.find(o => o.value === value)?.label || placeholder;
+  
+  return (
+    <div className="filter-group" ref={dropdownRef}>
+      <label>{label}</label>
+      <div className="searchable-select">
+        <button 
+          className={`select-trigger ${isOpen ? 'open' : ''}`}
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          <span className="select-value">{selectedLabel}</span>
+          <ChevronDown size={14} className={`select-chevron ${isOpen ? 'rotated' : ''}`} />
+        </button>
+        
+        {isOpen && (
+          <div className="select-dropdown">
+            {options.length > 6 && (
+              <div className="select-search">
+                <Search size={12} />
+                <input
+                  type="text"
+                  placeholder={placeholder}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            )}
+            <div className="select-options">
+              {filteredOptions.map(opt => (
+                <button
+                  key={opt.value}
+                  className={`select-option ${opt.value === value ? 'selected' : ''}`}
+                  onClick={() => {
+                    onChange(opt.value);
+                    setIsOpen(false);
+                    setSearchTerm('');
+                  }}
+                >
+                  <span>{opt.label}</span>
+                  {opt.value === value && <Check size={14} />}
+                </button>
+              ))}
+              {filteredOptions.length === 0 && (
+                <div className="select-no-results">No matches found</div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 interface Props {
   points: GalaxyPoint[];
@@ -17,16 +103,21 @@ interface BookPointProps {
   showLabels: boolean;
 }
 
-// Color mapping based on rating
-const getRatingColor = (rating: number, shelf: string): THREE.Color => {
-  if (shelf === 'to-read') return new THREE.Color('#4da6ff'); // Blue for unread
+// Color mapping based on read status and rating
+const getRatingColor = (rating: number, isRead: boolean): THREE.Color => {
+  // Unread books: Gold/Yellow spectrum (recommendations)
+  if (!isRead) {
+    return new THREE.Color('#ffd93d'); // Gold for unread recommendations
+  }
+  
+  // Read books: Color by rating (blue spectrum)
   switch (rating) {
-    case 5: return new THREE.Color('#ffd93d'); // Gold supernova
+    case 5: return new THREE.Color('#00f5d4'); // Teal supernova
     case 4: return new THREE.Color('#4da6ff'); // Blue giant
     case 3: return new THREE.Color('#a8b4c4'); // White dwarf
-    case 2: return new THREE.Color('#ff6b9d'); // Red
-    case 1: return new THREE.Color('#ff4444'); // Deep red
-    default: return new THREE.Color('#5a6478'); // Dim
+    case 2: return new THREE.Color('#ff6b9d'); // Pink
+    case 1: return new THREE.Color('#ff4444'); // Red
+    default: return new THREE.Color('#5a6478'); // Dim gray
   }
 };
 
@@ -35,21 +126,19 @@ const BookPoint: React.FC<BookPointProps> = ({ point, isSelected, onClick, showL
   const meshRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
   
-  const color = useMemo(() => getRatingColor(point.my_rating, point.shelf), [point.my_rating, point.shelf]);
-  const baseSize = point.pages ? Math.min(0.05 + (point.pages / 2000) * 0.05, 0.12) : 0.06;
+  const color = useMemo(() => getRatingColor(point.my_rating, point.is_read), [point.my_rating, point.is_read]);
   
-  useFrame((state) => {
-    if (meshRef.current) {
-      // Gentle pulse animation
-      const pulse = Math.sin(state.clock.elapsedTime * 2 + parseFloat(point.id)) * 0.1 + 1;
-      meshRef.current.scale.setScalar((hovered || isSelected ? 1.5 : 1) * pulse * baseSize * 10);
-    }
-  });
+  // Size based on rating (bigger = higher rating) and read status
+  // Unread books are smaller (recommendations in background)
+  const size = point.is_read 
+    ? 0.08 + (point.my_rating || 0) * 0.02  // Read: 0.08 to 0.18
+    : 0.04 + (point.my_rating || 0) * 0.005; // Unread: smaller, 0.04 to 0.065
 
   return (
     <mesh
       ref={meshRef}
-      position={[point.x * 5, point.y * 5, point.z * 5]}
+      position={[point.x * 8, point.y * 8, point.z * 8]}
+      scale={hovered || isSelected ? 1.8 : 1}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
@@ -57,13 +146,13 @@ const BookPoint: React.FC<BookPointProps> = ({ point, isSelected, onClick, showL
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
     >
-      <sphereGeometry args={[1, 16, 16]} />
+      <sphereGeometry args={[size, 12, 12]} />
       <meshStandardMaterial
         color={color}
         emissive={color}
-        emissiveIntensity={hovered || isSelected ? 2 : 0.8}
+        emissiveIntensity={hovered || isSelected ? 3 : 1.5}
         transparent
-        opacity={hovered || isSelected ? 1 : 0.85}
+        opacity={0.9}
       />
       
       {(hovered || (showLabels && point.my_rating === 5)) && (
@@ -160,12 +249,113 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
   const [showTable, setShowTable] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   
+  // Filter states
+  const [readStatusFilter, setReadStatusFilter] = useState<'all' | 'read' | 'unread'>('read'); // Default to read only
+  const [ratingFilter, setRatingFilter] = useState<number | 'all'>('all');
+  const [yearPublishedFilter, setYearPublishedFilter] = useState<string>('all');
+  const [yearReadFilter, setYearReadFilter] = useState<string>('all');
+  const [genreFilter, setGenreFilter] = useState<string>('all');
+  const [keywordSearch, setKeywordSearch] = useState<string>('');
+  
+  // Extract unique years published
+  const availableYearsPublished = useMemo(() => {
+    const years = new Set<string>();
+    points.forEach(p => {
+      if (p.year_published) {
+        years.add(p.year_published.toString());
+      }
+    });
+    return Array.from(years).sort().reverse();
+  }, [points]);
+  
+  // Extract unique years read from date_read
+  const availableYearsRead = useMemo(() => {
+    const years = new Set<string>();
+    points.forEach(p => {
+      if (p.date_read) {
+        // date_read is in format "YYYY/MM/DD" or similar
+        const year = p.date_read.substring(0, 4);
+        if (year && !isNaN(Number(year))) {
+          years.add(year);
+        }
+      }
+    });
+    return Array.from(years).sort().reverse();
+  }, [points]);
+  
+  // Extract unique genres
+  const availableGenres = useMemo(() => {
+    const genreSet = new Set<string>();
+    points.forEach(p => {
+      p.genres?.forEach(g => genreSet.add(g));
+    });
+    return Array.from(genreSet).sort();
+  }, [points]);
+  
+  // Apply all filters
+  const filteredPoints = useMemo(() => {
+    let filtered = [...points];
+    
+    // Read status filter
+    if (readStatusFilter === 'read') {
+      filtered = filtered.filter(p => p.is_read);
+    } else if (readStatusFilter === 'unread') {
+      filtered = filtered.filter(p => !p.is_read);
+    }
+    
+    // Rating filter
+    if (ratingFilter !== 'all') {
+      filtered = filtered.filter(p => p.my_rating === ratingFilter);
+    }
+    
+    // Year published filter
+    if (yearPublishedFilter !== 'all') {
+      filtered = filtered.filter(p => p.year_published?.toString() === yearPublishedFilter);
+    }
+    
+    // Year read filter
+    if (yearReadFilter !== 'all') {
+      filtered = filtered.filter(p => p.date_read?.substring(0, 4) === yearReadFilter);
+    }
+    
+    // Genre filter
+    if (genreFilter !== 'all') {
+      filtered = filtered.filter(p => p.genres?.includes(genreFilter));
+    }
+    
+    // Keyword search (title/author)
+    if (keywordSearch.trim()) {
+      const keyword = keywordSearch.toLowerCase();
+      filtered = filtered.filter(p => 
+        p.title.toLowerCase().includes(keyword) || 
+        p.author.toLowerCase().includes(keyword)
+      );
+    }
+    
+    return filtered;
+  }, [points, readStatusFilter, ratingFilter, yearPublishedFilter, yearReadFilter, genreFilter, keywordSearch]);
+  
   // Summary stats
   const stats = useMemo(() => ({
     total: points.length,
+    read: points.filter(p => p.is_read).length,
+    unread: points.filter(p => !p.is_read).length,
     fiveStars: points.filter(p => p.my_rating === 5).length,
-    toRead: points.filter(p => p.shelf === 'to-read').length,
-  }), [points]);
+    showing: filteredPoints.length,
+  }), [points, filteredPoints]);
+  
+  // Check if any filters are active (beyond defaults)
+  const hasActiveFilters = readStatusFilter !== 'read' || ratingFilter !== 'all' || 
+    yearPublishedFilter !== 'all' || yearReadFilter !== 'all' || genreFilter !== 'all' || keywordSearch.trim() !== '';
+  
+  const clearFilters = () => {
+    setReadStatusFilter('read');
+    setRatingFilter('all');
+    setYearPublishedFilter('all');
+    setYearReadFilter('all');
+    setGenreFilter('all');
+    setKeywordSearch('');
+  };
 
   const handleReset = () => {
     setSelectedPoint(null);
@@ -176,11 +366,25 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
     <div className="galaxy-view">
       <div className="galaxy-header">
         <div className="galaxy-title">
-          <h2>🌌 Galaxy View</h2>
+          <h2>Galaxy View</h2>
           <p>Your reading universe in 3D vector space — books clustered by semantic similarity</p>
         </div>
         
         <div className="galaxy-controls">
+          <div className="view-toggle">
+            <button 
+              className={`toggle-btn ${readStatusFilter === 'read' ? 'active' : ''}`}
+              onClick={() => setReadStatusFilter('read')}
+            >
+              📖 Read Only
+            </button>
+            <button 
+              className={`toggle-btn ${readStatusFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setReadStatusFilter('all')}
+            >
+              🌌 All Books
+            </button>
+          </div>
           <button 
             className={`control-btn ${showLabels ? 'active' : ''}`}
             onClick={() => setShowLabels(!showLabels)}
@@ -214,16 +418,20 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
 
       <div className="galaxy-stats">
         <div className="stat">
-          <span className="stat-num">{stats.total}</span>
-          <span className="stat-label">Books</span>
+          <span className="stat-num">{stats.showing}</span>
+          <span className="stat-label">Showing</span>
+        </div>
+        <div className="stat">
+          <span className="stat-num" style={{ color: '#00f5d4' }}>{stats.read}</span>
+          <span className="stat-label">Read</span>
+        </div>
+        <div className="stat">
+          <span className="stat-num" style={{ color: '#ffd93d' }}>{stats.unread}</span>
+          <span className="stat-label">Unread</span>
         </div>
         <div className="stat">
           <span className="stat-num" style={{ color: 'var(--color-star-gold)' }}>{stats.fiveStars}</span>
           <span className="stat-label">5-Star</span>
-        </div>
-        <div className="stat">
-          <span className="stat-num" style={{ color: 'var(--color-blue-giant)' }}>{stats.toRead}</span>
-          <span className="stat-label">To-Read</span>
         </div>
       </div>
 
@@ -234,7 +442,7 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
         >
           <Suspense fallback={null}>
             <GalaxyScene
-              points={points}
+              points={filteredPoints}
               selectedPoint={selectedPoint}
               onSelect={setSelectedPoint}
               showLabels={showLabels}
@@ -246,15 +454,19 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
         <div className="galaxy-legend">
           <div className="legend-item">
             <span className="legend-dot" style={{ background: '#ffd93d' }}></span>
-            <span>5★ Books</span>
+            <span>Unread (Recommendations)</span>
+          </div>
+          <div className="legend-item">
+            <span className="legend-dot" style={{ background: '#00f5d4' }}></span>
+            <span>5★ Read</span>
           </div>
           <div className="legend-item">
             <span className="legend-dot" style={{ background: '#4da6ff' }}></span>
-            <span>4★ / To-Read</span>
+            <span>4★ Read</span>
           </div>
           <div className="legend-item">
             <span className="legend-dot" style={{ background: '#a8b4c4' }}></span>
-            <span>3★ Books</span>
+            <span>3★ Read</span>
           </div>
         </div>
       </div>
@@ -310,10 +522,102 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
         <span>Click and drag to rotate • Scroll to zoom • Click a star to see details</span>
       </div>
 
+      {/* Filter Bar - Below visual, above table */}
+      <div className="galaxy-filters-bar">
+        <div className="filters-header">
+          <h3>🔍 Filter Books</h3>
+          {hasActiveFilters && (
+            <button className="clear-filters-btn" onClick={clearFilters} title="Clear all filters">
+              <X size={14} />
+              Clear All
+            </button>
+          )}
+        </div>
+        <div className="filters-row">
+          <SearchableSelect
+            label="Status"
+            value={readStatusFilter}
+            options={[
+              { value: 'all', label: 'All Books' },
+              { value: 'read', label: '📖 Read Only' },
+              { value: 'unread', label: '💡 Unread Only' },
+            ]}
+            onChange={(v) => setReadStatusFilter(v as any)}
+          />
+          
+          <SearchableSelect
+            label="Rating"
+            value={ratingFilter === 'all' ? 'all' : String(ratingFilter)}
+            options={[
+              { value: 'all', label: 'All Ratings' },
+              { value: '5', label: '⭐⭐⭐⭐⭐ 5 Stars' },
+              { value: '4', label: '⭐⭐⭐⭐ 4 Stars' },
+              { value: '3', label: '⭐⭐⭐ 3 Stars' },
+              { value: '2', label: '⭐⭐ 2 Stars' },
+              { value: '1', label: '⭐ 1 Star' },
+              { value: '0', label: 'Unrated' },
+            ]}
+            onChange={(v) => setRatingFilter(v === 'all' ? 'all' : Number(v))}
+          />
+          
+          <SearchableSelect
+            label="Year Read"
+            value={yearReadFilter}
+            options={[
+              { value: 'all', label: 'All Years' },
+              ...availableYearsRead.map(y => ({ value: y, label: y }))
+            ]}
+            onChange={setYearReadFilter}
+            placeholder="Search year..."
+          />
+          
+          <SearchableSelect
+            label="Year Published"
+            value={yearPublishedFilter}
+            options={[
+              { value: 'all', label: 'All Years' },
+              ...availableYearsPublished.map(y => ({ value: y, label: y }))
+            ]}
+            onChange={setYearPublishedFilter}
+            placeholder="Search year..."
+          />
+          
+          <SearchableSelect
+            label="Genre"
+            value={genreFilter}
+            options={[
+              { value: 'all', label: 'All Genres' },
+              ...availableGenres.map(g => ({ value: g, label: g }))
+            ]}
+            onChange={setGenreFilter}
+            placeholder="Search genre..."
+          />
+          
+          <div className="filter-group keyword-search">
+            <label>Keyword</label>
+            <div className="search-wrapper">
+              <Search size={14} className="search-icon" />
+              <input
+                type="text"
+                placeholder="Title or author..."
+                value={keywordSearch}
+                onChange={(e) => setKeywordSearch(e.target.value)}
+                className="filter-search"
+              />
+              {keywordSearch && (
+                <button className="clear-search" onClick={() => setKeywordSearch('')}>
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Data Table */}
       {showTable && (
         <BookTable 
-          books={points} 
+          books={filteredPoints} 
           onSelectBook={(book) => setSelectedPoint(book)}
         />
       )}
@@ -367,6 +671,335 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
           background: var(--color-cosmic-purple);
           color: white;
           border-color: var(--color-cosmic-purple);
+        }
+        
+        .view-toggle {
+          display: flex;
+          background: var(--color-nebula-dark);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-md);
+          overflow: hidden;
+          margin-right: var(--space-sm);
+        }
+        
+        .toggle-btn {
+          padding: var(--space-sm) var(--space-md);
+          background: transparent;
+          border: none;
+          color: var(--color-text-muted);
+          font-family: var(--font-main);
+          font-size: 0.875rem;
+          cursor: pointer;
+          transition: all var(--transition-fast);
+          white-space: nowrap;
+        }
+        
+        .toggle-btn:hover {
+          color: var(--color-text-primary);
+          background: rgba(138, 93, 255, 0.1);
+        }
+        
+        .toggle-btn.active {
+          background: var(--color-cosmic-purple);
+          color: white;
+        }
+        
+        .filter-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 18px;
+          height: 18px;
+          padding: 0 4px;
+          background: white;
+          border-radius: var(--radius-full);
+          font-size: 0.7rem;
+          font-weight: 700;
+          color: var(--color-cosmic-purple);
+          margin-left: 4px;
+        }
+        
+        /* Filter Bar */
+        .galaxy-filters-bar {
+          background: var(--gradient-card);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-md);
+          padding: var(--space-lg);
+        }
+        
+        .filters-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: var(--space-md);
+        }
+        
+        .filters-header h3 {
+          font-size: 1rem;
+          font-weight: 600;
+          margin: 0;
+        }
+        
+        .filters-row {
+          display: flex;
+          gap: var(--space-md);
+          align-items: flex-end;
+          flex-wrap: wrap;
+        }
+        
+        .filter-group {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-xs);
+          position: relative;
+        }
+        
+        .filter-group label {
+          font-size: 0.75rem;
+          color: var(--color-text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        
+        /* Searchable Select Styles */
+        .searchable-select {
+          position: relative;
+          min-width: 160px;
+        }
+        
+        .select-trigger {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: var(--space-sm);
+          width: 100%;
+          padding: var(--space-sm) var(--space-md);
+          background: var(--color-nebula-dark);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-sm);
+          color: var(--color-text-primary);
+          font-family: var(--font-main);
+          font-size: 0.875rem;
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+        
+        .select-trigger:hover {
+          border-color: var(--color-cosmic-purple);
+        }
+        
+        .select-trigger.open {
+          border-color: var(--color-cosmic-purple);
+          background: rgba(138, 93, 255, 0.1);
+        }
+        
+        .select-value {
+          flex: 1;
+          text-align: left;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        
+        .select-chevron {
+          transition: transform var(--transition-fast);
+          flex-shrink: 0;
+        }
+        
+        .select-chevron.rotated {
+          transform: rotate(180deg);
+        }
+        
+        .select-dropdown {
+          position: absolute;
+          top: calc(100% + 4px);
+          left: 0;
+          right: 0;
+          min-width: 200px;
+          background: rgba(10, 10, 26, 0.98);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-sm);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+          z-index: 100;
+          animation: dropdownFadeIn 0.15s ease;
+        }
+        
+        @keyframes dropdownFadeIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .select-search {
+          display: flex;
+          align-items: center;
+          gap: var(--space-sm);
+          padding: var(--space-sm) var(--space-md);
+          border-bottom: 1px solid var(--color-border);
+        }
+        
+        .select-search input {
+          flex: 1;
+          background: transparent;
+          border: none;
+          color: var(--color-text-primary);
+          font-family: var(--font-main);
+          font-size: 0.875rem;
+          outline: none;
+        }
+        
+        .select-search input::placeholder {
+          color: var(--color-text-muted);
+        }
+        
+        .select-options {
+          max-height: 240px;
+          overflow-y: auto;
+          padding: var(--space-xs) 0;
+        }
+        
+        .select-options::-webkit-scrollbar {
+          width: 6px;
+        }
+        
+        .select-options::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        
+        .select-options::-webkit-scrollbar-thumb {
+          background: var(--color-border);
+          border-radius: 3px;
+        }
+        
+        .select-option {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+          padding: var(--space-sm) var(--space-md);
+          background: transparent;
+          border: none;
+          color: var(--color-text-secondary);
+          font-family: var(--font-main);
+          font-size: 0.875rem;
+          cursor: pointer;
+          transition: all var(--transition-fast);
+          text-align: left;
+        }
+        
+        .select-option:hover {
+          background: rgba(138, 93, 255, 0.15);
+          color: var(--color-text-primary);
+        }
+        
+        .select-option.selected {
+          background: rgba(0, 245, 212, 0.1);
+          color: #00f5d4;
+        }
+        
+        .select-no-results {
+          padding: var(--space-md);
+          text-align: center;
+          color: var(--color-text-muted);
+          font-size: 0.875rem;
+        }
+        
+        .filter-select {
+          padding: var(--space-sm) var(--space-md);
+          background: var(--color-nebula-dark);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-sm);
+          color: var(--color-text-primary);
+          font-family: var(--font-main);
+          font-size: 0.875rem;
+          min-width: 140px;
+        }
+        
+        .filter-select:focus {
+          outline: none;
+          border-color: var(--color-cosmic-purple);
+        }
+        
+        .keyword-search {
+          flex: 1;
+          min-width: 200px;
+        }
+        
+        .search-wrapper {
+          position: relative;
+        }
+        
+        .search-icon {
+          position: absolute;
+          left: var(--space-sm);
+          top: 50%;
+          transform: translateY(-50%);
+          color: var(--color-text-muted);
+        }
+        
+        .filter-search {
+          width: 100%;
+          padding: var(--space-sm) var(--space-md) var(--space-sm) 32px;
+          background: var(--color-nebula-dark);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-sm);
+          color: var(--color-text-primary);
+          font-family: var(--font-main);
+          font-size: 0.875rem;
+        }
+        
+        .filter-search:focus {
+          outline: none;
+          border-color: var(--color-cosmic-purple);
+        }
+        
+        .clear-search {
+          position: absolute;
+          right: var(--space-sm);
+          top: 50%;
+          transform: translateY(-50%);
+          background: none;
+          border: none;
+          color: var(--color-text-muted);
+          cursor: pointer;
+          padding: 2px;
+          display: flex;
+          align-items: center;
+        }
+        
+        .clear-filters-btn {
+          display: flex;
+          align-items: center;
+          gap: var(--space-xs);
+          padding: var(--space-sm) var(--space-md);
+          background: rgba(255, 107, 157, 0.15);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-sm);
+          color: #ff6b9d;
+          font-family: var(--font-main);
+          font-size: 0.875rem;
+          cursor: pointer;
+          transition: all var(--transition-fast);
+          align-self: flex-end;
+        }
+        
+        .clear-filters-btn:hover {
+          background: rgba(255, 107, 157, 0.25);
+          border-color: #ff6b9d;
+        }
+        
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .animate-slideDown {
+          animation: slideDown 0.3s ease;
         }
         
         .galaxy-stats {

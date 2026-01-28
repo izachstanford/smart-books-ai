@@ -3,3 +3,6 @@
 enrichment_cache.json
 archive/
 outputs/
+
+# Exclusions config (contains personal filtering preferences)
+exclusions.json

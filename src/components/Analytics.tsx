@@ -66,7 +66,7 @@ const Analytics: React.FC<Props> = ({ data }) => {
   return (
     <div className="analytics">
       <div className="analytics-header">
-        <h2>📊 Analytics Dashboard</h2>
+        <h2>Analytics Dashboard</h2>
         <p>Insights into your reading patterns and preferences</p>
       </div>
 
@@ -107,8 +107,8 @@ const Analytics: React.FC<Props> = ({ data }) => {
             <Calendar size={24} color={COLORS.accent} />
           </div>
           <div className="stat-content">
-            <span className="stat-value">{summary.books_to_read}</span>
-            <span className="stat-label">To-Read Queue</span>
+            <span className="stat-value">{summary.books_unread ?? summary.books_to_read ?? 0}</span>
+            <span className="stat-label">Unread Books</span>
           </div>
         </div>
       </div>

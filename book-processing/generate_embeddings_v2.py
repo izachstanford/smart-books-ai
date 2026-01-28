@@ -97,23 +97,23 @@ def run_pipeline():
         
         book_data = {
             'id': str(row['book_key']),
-            'title': row['title'],
-            'author': row['author'],
-            'isbn': row.get('isbn', ''),
+            'title': str(row['title']) if pd.notna(row['title']) else '',
+            'author': str(row['author']) if pd.notna(row['author']) else '',
+            'isbn': str(row.get('isbn', '')) if pd.notna(row.get('isbn')) else '',
             'my_rating': int(row['my_rating']) if pd.notna(row['my_rating']) else 0,
             'avg_rating': float(row['avg_rating']) if pd.notna(row['avg_rating']) else 0,
             'shelf': 'read' if row['is_read'] else 'unread',
             'is_read': bool(row['is_read']),
-            'date_read': row['date_read'] if pd.notna(row['date_read']) else None,
+            'date_read': str(row['date_read']) if pd.notna(row['date_read']) else None,
             'pages': int(row.get('pages', 0)) if pd.notna(row.get('pages')) else None,
             'year_published': safe_year(row['publish_year']),
-            'description': row['description_clean'] if pd.notna(row['description_clean']) else '',
+            'description': str(row['description_clean']) if pd.notna(row['description_clean']) else '',
             'genres': json.dumps(genres) if genres else '[]',
-            'genre_primary': row.get('genre_primary', 'Unknown'),
-            'cover_url': row['cover_image_url'] if pd.notna(row['cover_image_url']) else None,
+            'genre_primary': str(row.get('genre_primary', 'Unknown')) if pd.notna(row.get('genre_primary')) else 'Unknown',
+            'cover_url': str(row['cover_image_url']) if pd.notna(row['cover_image_url']) else None,
             'popularity_score': int(row['popularity_score']) if pd.notna(row['popularity_score']) else 0,
             'embedding': embeddings[idx].tolist(),
-            'embedding_text': row[embedding_col]
+            'embedding_text': str(row[embedding_col]) if pd.notna(row[embedding_col]) else ''
         }
         output_data.append(book_data)
     
@@ -128,20 +128,20 @@ def run_pipeline():
         
         book_data = {
             'id': str(row['book_key']),
-            'title': row['title'],
-            'author': row['author'],
-            'isbn': row.get('isbn', ''),
+            'title': str(row['title']) if pd.notna(row['title']) else '',
+            'author': str(row['author']) if pd.notna(row['author']) else '',
+            'isbn': str(row.get('isbn', '')) if pd.notna(row.get('isbn')) else '',
             'my_rating': int(row['my_rating']) if pd.notna(row['my_rating']) else 0,
             'avg_rating': float(row['avg_rating']) if pd.notna(row['avg_rating']) else 0,
             'shelf': 'read' if row['is_read'] else 'unread',
             'is_read': bool(row['is_read']),
-            'date_read': row['date_read'] if pd.notna(row['date_read']) else None,
+            'date_read': str(row['date_read']) if pd.notna(row['date_read']) else None,
             'pages': int(row.get('pages', 0)) if pd.notna(row.get('pages')) else None,
             'year_published': safe_year(row['publish_year']),
             'description': '',
             'genres': json.dumps(genres) if genres else '[]',
-            'genre_primary': row.get('genre_primary', 'Unknown'),
-            'cover_url': row['cover_image_url'] if pd.notna(row['cover_image_url']) else None,
+            'genre_primary': str(row.get('genre_primary', 'Unknown')) if pd.notna(row.get('genre_primary')) else 'Unknown',
+            'cover_url': str(row['cover_image_url']) if pd.notna(row['cover_image_url']) else None,
             'popularity_score': int(row['popularity_score']) if pd.notna(row['popularity_score']) else 0,
             'embedding': None,  # No embedding for books without descriptions
             'embedding_text': None

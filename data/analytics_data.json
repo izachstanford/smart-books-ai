@@ -1,13 +1,13 @@
 {
   "summary": {
-    "total_books": 501,
-    "books_read": 466,
-    "books_to_read": 35,
-    "books_with_descriptions": 255,
-    "five_star_books": 89,
+    "total_books": 3750,
+    "books_read": 388,
+    "books_unread": 3362,
+    "books_with_descriptions": 3101,
+    "five_star_books": 85,
     "average_rating": 3.7,
-    "coverage_percent": 50.9,
-    "generated_at": "2026-01-27T15:07:53.257088"
+    "coverage_percent": 82.7,
+    "generated_at": "2026-01-28T16:36:58.206429"
   },
   "reading_timeline": [
     {
@@ -100,7 +100,7 @@
     },
     {
       "year_month": "2015-06",
-      "count": 29
+      "count": 28
     },
     {
       "year_month": "2015-07",
@@ -569,126 +569,122 @@
   ],
   "genre_breakdown": [
     {
-      "genre": "Fantasy",
-      "count": 109
-    },
-    {
       "genre": "Nonfiction",
-      "count": 102
-    },
-    {
-      "genre": "Fiction",
-      "count": 59
+      "count": 2
     },
     {
       "genre": "Self Help",
-      "count": 42
+      "count": 2
     },
     {
-      "genre": "Business",
-      "count": 36
+      "genre": "Fantasy",
+      "count": 1
     },
     {
-      "genre": "Young Adult",
-      "count": 26
+      "genre": "Fiction",
+      "count": 1
     },
     {
-      "genre": "Classics",
-      "count": 25
-    },
-    {
-      "genre": "Psychology",
-      "count": 19
-    },
-    {
-      "genre": "Historical Fiction",
-      "count": 18
+      "genre": "Epic Fantasy",
+      "count": 1
     },
     {
       "genre": "Philosophy",
-      "count": 15
+      "count": 1
     },
     {
-      "genre": "Lds",
-      "count": 15
+      "genre": "Parenting",
+      "count": 1
     },
     {
-      "genre": "Biography",
-      "count": 14
+      "genre": "Science",
+      "count": 1
+    },
+    {
+      "genre": "Business",
+      "count": 1
+    },
+    {
+      "genre": "Finance",
+      "count": 1
     }
   ],
   "rating_distribution": [
     {
-      "rating": 1,
-      "count": 7
-    },
-    {
-      "rating": 2,
-      "count": 31
-    },
-    {
-      "rating": 3,
-      "count": 122
+      "rating": 5,
+      "count": 85
     },
     {
       "rating": 4,
       "count": 141
     },
     {
-      "rating": 5,
-      "count": 89
+      "rating": 3,
+      "count": 121
+    },
+    {
+      "rating": 2,
+      "count": 31
+    },
+    {
+      "rating": 1,
+      "count": 6
+    },
+    {
+      "rating": 0,
+      "count": 4
     }
   ],
   "top_authors": [
-    {
-      "author": "C.S. Lewis",
-      "count": 13
-    },
-    {
-      "author": "Chris Heimerdinger",
-      "count": 12
-    },
     {
       "author": "Charles William Eliot",
       "count": 9
     },
     {
-      "author": "John D. Fitzgerald",
-      "count": 8
-    },
-    {
-      "author": "J.K. Rowling",
+      "author": "C.S. Lewis",
       "count": 7
-    },
-    {
-      "author": "Brandon Sanderson",
-      "count": 6
     },
     {
       "author": "Ryan Holiday",
       "count": 6
     },
     {
-      "author": "Brandon Mull",
-      "count": 5
+      "author": "Brandon Sanderson",
+      "count": 6
     },
     {
-      "author": "Obert Skye",
-      "count": 5
+      "author": "Malcolm Gladwell",
+      "count": 4
     },
     {
-      "author": "Gerald N. Lund",
-      "count": 5
+      "author": "Matt Fitzgerald",
+      "count": 4
+    },
+    {
+      "author": "Jonathan Haidt",
+      "count": 4
+    },
+    {
+      "author": "Cal Newport",
+      "count": 4
+    },
+    {
+      "author": "J.K. Rowling",
+      "count": 4
+    },
+    {
+      "author": "Yuval Noah Harari",
+      "count": 3
     }
   ],
   "shelf_summary": [
     {
       "shelf": "read",
-      "count": 466
+      "count": 388
     },
     {
-      "shelf": "to-read",
-      "count": 35
+      "shelf": "unread",
+      "count": 3362
     }
   ]
 }

@@ -43,7 +43,7 @@ const Architecture: React.FC<Props> = ({ analytics }) => {
   return (
     <div className="architecture">
       <div className="arch-header">
-        <h2>🔬 Architecture</h2>
+        <h2>Architecture</h2>
         <p>How SmartBooks AI transforms your reading data into intelligent recommendations</p>
       </div>
 

@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  ChevronDown, ChevronUp, Filter, X, Star, BookOpen, 
-  Calendar, Hash, ArrowUpDown, Search
+  ChevronDown, ChevronUp, Star, ArrowUpDown, BookOpen
 } from 'lucide-react';
 import { GalaxyPoint } from '../App';
 
@@ -10,21 +9,14 @@ interface Props {
   onSelectBook?: (book: GalaxyPoint) => void;
 }
 
-type SortField = 'title' | 'author' | 'my_rating' | 'shelf' | 'pages';
+type SortField = 'title' | 'author' | 'my_rating' | 'shelf' | 'pages' | 'date_read';
 type SortDirection = 'asc' | 'desc';
 
 /**
- * BookTable - Filterable data table for all books
- * Shows below Galaxy View with dynamic filters
+ * BookTable - Sortable data table for books
+ * Shows below Galaxy View (filtering is handled by the parent component)
  */
 const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
-  // Filter states
-  const [searchQuery, setSearchQuery] = useState('');
-  const [ratingFilter, setRatingFilter] = useState<number | 'all'>('all');
-  const [shelfFilter, setShelfFilter] = useState<string | 'all'>('all');
-  const [genreFilter, setGenreFilter] = useState<string | 'all'>('all');
-  const [showFilters, setShowFilters] = useState(true);
-  
   // Sort states
   const [sortField, setSortField] = useState<SortField>('title');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -33,53 +25,9 @@ const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
-  // Extract unique values for filters
-  const filterOptions = useMemo(() => {
-    const shelfSet = new Set(books.map(b => b.shelf));
-    const shelves = Array.from(shelfSet).sort();
-    
-    const genreSet = new Set<string>();
-    books.forEach(b => {
-      b.genres?.forEach(g => genreSet.add(g));
-    });
-    const genres = Array.from(genreSet).sort();
-    
-    const ratings = [5, 4, 3, 2, 1, 0];
-    
-    return {
-      shelves,
-      genres,
-      ratings
-    };
-  }, [books]);
-
-  // Apply filters and sorting
-  const filteredBooks = useMemo(() => {
+  // Apply sorting
+  const sortedBooks = useMemo(() => {
     let result = [...books];
-    
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(b => 
-        b.title.toLowerCase().includes(query) ||
-        b.author.toLowerCase().includes(query)
-      );
-    }
-    
-    // Rating filter
-    if (ratingFilter !== 'all') {
-      result = result.filter(b => b.my_rating === ratingFilter);
-    }
-    
-    // Shelf filter
-    if (shelfFilter !== 'all') {
-      result = result.filter(b => b.shelf === shelfFilter);
-    }
-    
-    // Genre filter
-    if (genreFilter !== 'all') {
-      result = result.filter(b => b.genres?.includes(genreFilter));
-    }
     
     // Sort
     result.sort((a, b) => {
@@ -102,19 +50,19 @@ const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
     });
     
     return result;
-  }, [books, searchQuery, ratingFilter, shelfFilter, genreFilter, sortField, sortDirection]);
+  }, [books, sortField, sortDirection]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredBooks.length / itemsPerPage);
-  const paginatedBooks = filteredBooks.slice(
+  const totalPages = Math.ceil(sortedBooks.length / itemsPerPage);
+  const paginatedBooks = sortedBooks.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
-  // Reset page when filters change
+  // Reset page when books change
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, ratingFilter, shelfFilter, genreFilter]);
+  }, [books]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -124,15 +72,6 @@ const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
       setSortDirection('asc');
     }
   };
-
-  const clearFilters = () => {
-    setSearchQuery('');
-    setRatingFilter('all');
-    setShelfFilter('all');
-    setGenreFilter('all');
-  };
-
-  const hasActiveFilters = searchQuery || ratingFilter !== 'all' || shelfFilter !== 'all' || genreFilter !== 'all';
 
   const renderStars = (rating: number) => {
     if (rating === 0) return <span className="no-rating">—</span>;
@@ -163,92 +102,10 @@ const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
         <div className="header-left">
           <h3>📚 Library Table</h3>
           <span className="book-count">
-            {filteredBooks.length} of {books.length} books
+            {books.length} books
           </span>
         </div>
-        
-        <button 
-          className={`filter-toggle ${showFilters ? 'active' : ''}`}
-          onClick={() => setShowFilters(!showFilters)}
-        >
-          <Filter size={16} />
-          Filters
-          {hasActiveFilters && <span className="filter-badge">{
-            [searchQuery, ratingFilter !== 'all', shelfFilter !== 'all', genreFilter !== 'all'].filter(Boolean).length
-          }</span>}
-        </button>
       </div>
-
-      {showFilters && (
-        <div className="filters-bar">
-          <div className="filter-group search-filter">
-            <Search size={16} />
-            <input
-              type="text"
-              placeholder="Search title or author..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="filter-input"
-            />
-            {searchQuery && (
-              <button className="clear-input" onClick={() => setSearchQuery('')}>
-                <X size={14} />
-              </button>
-            )}
-          </div>
-          
-          <div className="filter-group">
-            <Star size={16} />
-            <select 
-              value={ratingFilter} 
-              onChange={(e) => setRatingFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-              className="filter-select"
-            >
-              <option value="all">All Ratings</option>
-              {filterOptions.ratings.map(r => (
-                <option key={r} value={r}>
-                  {r === 0 ? 'Unrated' : `${r} Star${r !== 1 ? 's' : ''}`}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="filter-group">
-            <BookOpen size={16} />
-            <select 
-              value={shelfFilter} 
-              onChange={(e) => setShelfFilter(e.target.value)}
-              className="filter-select"
-            >
-              <option value="all">All Shelves</option>
-              {filterOptions.shelves.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="filter-group">
-            <Hash size={16} />
-            <select 
-              value={genreFilter} 
-              onChange={(e) => setGenreFilter(e.target.value)}
-              className="filter-select"
-            >
-              <option value="all">All Genres</option>
-              {filterOptions.genres.slice(0, 30).map(g => (
-                <option key={g} value={g}>{g}</option>
-              ))}
-            </select>
-          </div>
-          
-          {hasActiveFilters && (
-            <button className="clear-filters" onClick={clearFilters}>
-              <X size={14} />
-              Clear All
-            </button>
-          )}
-        </div>
-      )}
 
       <div className="table-wrapper">
         <table className="book-table">
@@ -266,6 +123,9 @@ const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
               </th>
               <th className="sortable shelf-col" onClick={() => handleSort('shelf')}>
                 Shelf <SortIcon field="shelf" />
+              </th>
+              <th className="sortable date-col" onClick={() => handleSort('date_read')}>
+                Date Read <SortIcon field="date_read" />
               </th>
               <th className="genres-col">Genres</th>
               <th className="sortable pages-col" onClick={() => handleSort('pages')}>
@@ -298,6 +158,9 @@ const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
                   <span className={`shelf-badge ${book.shelf}`}>
                     {book.shelf === 'read' ? '✅' : '📚'} {book.shelf}
                   </span>
+                </td>
+                <td className="date-cell">
+                  {book.date_read || '—'}
                 </td>
                 <td className="genres-cell">
                   <div className="genre-tags">
@@ -562,6 +425,7 @@ const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
         .cover-col { width: 60px; }
         .rating-col { width: 100px; }
         .shelf-col { width: 100px; }
+        .date-col { width: 110px; }
         .pages-col { width: 80px; }
         .genres-col { width: 180px; }
         

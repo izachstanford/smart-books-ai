@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import { Search, Sparkles, BarChart3, MessageCircle, Compass, Cpu } from 'lucide-react';
+import { Search, Sparkles, BarChart3, Compass, Cpu } from 'lucide-react';
 
 // Components
 import SemanticSearch from './components/SemanticSearch';
 import GalaxyView from './components/GalaxyView';
 import Analytics from './components/Analytics';
-import AIBookChat from './components/AIBookChat';
 import TasteFinder from './components/TasteFinder';
 import Architecture from './components/Architecture';
 import StarField from './components/StarField';
@@ -16,20 +15,24 @@ export interface Book {
   id: string;
   title: string;
   author: string;
+  isbn?: string;
   my_rating: number;
   avg_rating: number;
   shelf: string;
+  is_read: boolean;  // ⭐ NEW: Primary read status flag
   date_read: string | null;
-  date_added: string | null;
+  date_added?: string | null;
   pages: number | null;
   year_published: number | null;
   description: string | null;
   genres: string;
+  genre_primary?: string;  // ⭐ NEW: Coarse category
   cover_url: string | null;
-  series: string | null;
-  review: string | null;
+  popularity_score?: number;  // ⭐ NEW: For ranking unread books
+  series?: string | null;
+  review?: string | null;
   embedding: number[] | null;
-  embedding_text: string | null;
+  embedding_text?: string | null;
 }
 
 export interface GalaxyPoint {
@@ -38,9 +41,14 @@ export interface GalaxyPoint {
   author: string;
   my_rating: number;
   shelf: string;
+  is_read: boolean;  // ⭐ NEW: Read status
+  date_read?: string | null;  // ⭐ NEW: Date read
   cover_url: string | null;
   genres: string[];
+  genre_primary?: string;
   pages: number | null;
+  year_published?: number | null;
+  popularity_score?: number;
   x: number;
   y: number;
   z: number;
@@ -52,7 +60,8 @@ export interface AnalyticsData {
   summary: {
     total_books: number;
     books_read: number;
-    books_to_read: number;
+    books_to_read?: number;  // Optional (old schema)
+    books_unread?: number;   // NEW: Replaces books_to_read
     books_with_descriptions: number;
     five_star_books: number;
     average_rating: number;
@@ -72,7 +81,7 @@ export interface AppData {
   galaxy: GalaxyPoint[];
 }
 
-type TabId = 'search' | 'galaxy' | 'analytics' | 'chat' | 'taste' | 'architecture';
+type TabId = 'search' | 'galaxy' | 'analytics' | 'discover' | 'architecture';
 
 interface Tab {
   id: TabId;
@@ -81,16 +90,15 @@ interface Tab {
 }
 
 const tabs: Tab[] = [
-  { id: 'search', label: 'Search', icon: <Search size={18} /> },
   { id: 'galaxy', label: 'Galaxy', icon: <Sparkles size={18} /> },
   { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={18} /> },
-  { id: 'chat', label: 'AI Chat', icon: <MessageCircle size={18} /> },
-  { id: 'taste', label: 'Taste Finder', icon: <Compass size={18} /> },
+  { id: 'search', label: 'Search', icon: <Search size={18} /> },
+  { id: 'discover', label: 'Discover', icon: <Compass size={18} /> },
   { id: 'architecture', label: 'Architecture', icon: <Cpu size={18} /> },
 ];
 
 function App() {
-  const [activeTab, setActiveTab] = useState<TabId>('search');
+  const [activeTab, setActiveTab] = useState<TabId>('galaxy');
   const [data, setData] = useState<AppData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -157,9 +165,7 @@ function App() {
         return <GalaxyView points={data.galaxy} />;
       case 'analytics':
         return <Analytics data={data.analytics} />;
-      case 'chat':
-        return <AIBookChat books={data.books} />;
-      case 'taste':
+      case 'discover':
         return <TasteFinder books={data.books} />;
       case 'architecture':
         return <Architecture analytics={data.analytics} />;
