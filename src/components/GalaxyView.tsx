@@ -104,20 +104,21 @@ interface BookPointProps {
 }
 
 // Color mapping based on read status and rating
+// Theme: Discovery through light - rated books glow yellow, unread are gray
 const getRatingColor = (rating: number, isRead: boolean): THREE.Color => {
-  // Unread books: Gold/Yellow spectrum (recommendations)
+  // Unread books: Slate gray (undiscovered but visible)
   if (!isRead) {
-    return new THREE.Color('#ffd93d'); // Gold for unread recommendations
+    return new THREE.Color('#94a3b8'); // Lighter slate gray - visible against dark background
   }
   
-  // Read books: Color by rating (blue spectrum)
+  // Read books: Yellow spectrum for high ratings, light blue for low
   switch (rating) {
-    case 5: return new THREE.Color('#00f5d4'); // Teal supernova
-    case 4: return new THREE.Color('#4da6ff'); // Blue giant
-    case 3: return new THREE.Color('#a8b4c4'); // White dwarf
-    case 2: return new THREE.Color('#ff6b9d'); // Pink
-    case 1: return new THREE.Color('#ff4444'); // Red
-    default: return new THREE.Color('#5a6478'); // Dim gray
+    case 5: return new THREE.Color('#fbbf24'); // Bright yellow/gold - stellar
+    case 4: return new THREE.Color('#d4a017'); // Amber - warm glow
+    case 3: return new THREE.Color('#a89132'); // Muted gold/olive
+    case 2: return new THREE.Color('#7dd3fc'); // Light blue - cool
+    case 1: return new THREE.Color('#93c5fd'); // Softer light blue
+    default: return new THREE.Color('#9ca3af'); // Unrated read: medium gray
   }
 };
 
@@ -128,11 +129,8 @@ const BookPoint: React.FC<BookPointProps> = ({ point, isSelected, onClick, showL
   
   const color = useMemo(() => getRatingColor(point.my_rating, point.is_read), [point.my_rating, point.is_read]);
   
-  // Size based on rating (bigger = higher rating) and read status
-  // Unread books are smaller (recommendations in background)
-  const size = point.is_read 
-    ? 0.08 + (point.my_rating || 0) * 0.02  // Read: 0.08 to 0.18
-    : 0.04 + (point.my_rating || 0) * 0.005; // Unread: smaller, 0.04 to 0.065
+  // Uniform size for all books - let color convey the story
+  const size = 0.08;
 
   return (
     <mesh
@@ -150,9 +148,15 @@ const BookPoint: React.FC<BookPointProps> = ({ point, isSelected, onClick, showL
       <meshStandardMaterial
         color={color}
         emissive={color}
-        emissiveIntensity={hovered || isSelected ? 3 : 1.5}
+        emissiveIntensity={
+          hovered || isSelected 
+            ? 3 
+            : point.is_read 
+              ? (point.my_rating >= 4 ? 2.5 : 1.5)  // High-rated read books glow brighter
+              : 1.0  // Unread books - visible but not glowing
+        }
         transparent
-        opacity={0.9}
+        opacity={point.is_read ? 0.95 : 0.85}  // Unread slightly more transparent
       />
       
       {(hovered || (showLabels && point.my_rating === 5)) && (
@@ -503,20 +507,24 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
         
         <div className="galaxy-legend">
           <div className="legend-item">
-            <span className="legend-dot" style={{ background: '#ffd93d' }}></span>
-            <span>Unread (Recommendations)</span>
+            <span className="legend-dot" style={{ background: '#fbbf24' }}></span>
+            <span>5★ Favorites</span>
           </div>
           <div className="legend-item">
-            <span className="legend-dot" style={{ background: '#00f5d4' }}></span>
-            <span>5★ Read</span>
+            <span className="legend-dot" style={{ background: '#d4a017' }}></span>
+            <span>4★ Great</span>
           </div>
           <div className="legend-item">
-            <span className="legend-dot" style={{ background: '#4da6ff' }}></span>
-            <span>4★ Read</span>
+            <span className="legend-dot" style={{ background: '#a89132' }}></span>
+            <span>3★ Good</span>
           </div>
           <div className="legend-item">
-            <span className="legend-dot" style={{ background: '#a8b4c4' }}></span>
-            <span>3★ Read</span>
+            <span className="legend-dot" style={{ background: '#7dd3fc' }}></span>
+            <span>2★ / 1★</span>
+          </div>
+          <div className="legend-item">
+            <span className="legend-dot" style={{ background: '#94a3b8' }}></span>
+            <span>Unread</span>
           </div>
         </div>
       </div>
