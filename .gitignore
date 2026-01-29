@@ -40,11 +40,11 @@ data/chroma_db/
 data/books_1.Best_Books_Ever.csv
 
 # Large generated files (can be regenerated from pipeline)
-# Uncomment these if you want to exclude them:
-# data/library_with_embeddings.json
-# data/galaxy_coordinates.json
-# data/analytics_data.json
-# data/enriched_library.csv
+# These are too large for GitHub's 100MB limit
+data/library_with_embeddings.json
+data/galaxy_coordinates.json
+data/analytics_data.json
+data/enriched_library.csv
 
 # Public data folder (copied from data/)
 public/data/

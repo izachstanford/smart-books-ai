@@ -34,7 +34,7 @@ QUEUE_FILE = OUTPUT_DIR / 'enrichment_queue_v1.csv'
 # --- THRESHOLDS ---
 MIN_DESCRIPTION_LENGTH = 80  # Characters
 MIN_KAGGLE_RATINGS_COUNT = 1000  # Minimum ratings for quality filter
-TOP_N_POPULAR_BOOKS = 7000  # Take top N most popular unread books
+TOP_N_POPULAR_BOOKS = 10000  # Take top N most popular unread books
 DESCRIPTION_EMBEDDING_MAX_CHARS = 2000  # Cap for embedding input
 
 
@@ -62,6 +62,37 @@ def normalize_text(text: str) -> str:
     return text
 
 
+def normalize_title_for_dedup(title: str) -> str:
+    """
+    Normalize title for deduplication by removing:
+    - Series info like "(Harry Potter, #1)"
+    - Edition info like "[Special Edition]"
+    - Subtitle markers
+    """
+    if pd.isna(title):
+        return ''
+    title = str(title).strip()
+    
+    # Remove series info in parentheses at the end: "Book Title (Series, #3)"
+    title = re.sub(r'\s*\([^)]*,\s*#?\d+(?:\.\d+)?\)\s*$', '', title)
+    
+    # Remove other parenthetical info at end
+    title = re.sub(r'\s*\([^)]+\)\s*$', '', title)
+    
+    # Remove bracketed info: [Hardcover], [Special Edition]
+    title = re.sub(r'\s*\[[^\]]+\]\s*', '', title)
+    
+    # Normalize
+    title = title.lower().strip()
+    title = re.sub(r'\s+', ' ', title)
+    
+    # Remove common subtitle patterns
+    title = re.sub(r':\s+a novel.*$', '', title)
+    title = re.sub(r':\s+book \d+.*$', '', title)
+    
+    return title
+
+
 def normalize_author(author: str) -> str:
     """Convert 'Last, First' to 'First Last' for better matching."""
     if pd.isna(author):
@@ -73,6 +104,34 @@ def normalize_author(author: str) -> str:
         if len(parts) == 2:
             author = f"{parts[1]} {parts[0]}"
     return author
+
+
+def normalize_author_for_dedup(author: str) -> str:
+    """
+    Extract primary author for deduplication.
+    Handles cases like "J.K. Rowling, Mary GrandPré (Illustrator)" -> "j.k. rowling"
+    """
+    if pd.isna(author):
+        return ''
+    author = str(author).strip()
+    
+    # Remove parenthetical info (Illustrator), (Editor), etc.
+    author = re.sub(r'\s*\([^)]+\)', '', author)
+    
+    # Take only first author (before comma that separates co-authors)
+    # But be careful not to split "Rowling, J.K." style names
+    # If there's a comma followed by a capitalized word, it's likely a co-author
+    parts = re.split(r',\s+(?=[A-Z])', author)
+    if parts:
+        author = parts[0].strip()
+    
+    # Handle "Last, First" format
+    if ',' in author:
+        name_parts = [p.strip() for p in author.split(',', 1)]
+        if len(name_parts) == 2 and len(name_parts[1].split()) <= 2:
+            author = f"{name_parts[1]} {name_parts[0]}"
+    
+    return author.lower().strip()
 
 
 def generate_book_key(isbn13: Optional[str], title: str, author: str, book_id: Optional[str] = None) -> str:
@@ -403,11 +462,38 @@ def main():
     all_records['genres_list'] = all_records['genres_list_parsed'].apply(json.dumps)
     all_records = all_records.drop(columns=['genres_list_parsed'])
     
-    # Remove duplicates by book_key (keep first)
+    # Remove duplicates by book_key (keep first - Goodreads should come first)
     before_dedup = len(all_records)
     read_before_dedup = all_records['is_read'].sum()
     all_records = all_records.drop_duplicates(subset=['book_key'], keep='first')
-    print(f"   Deduplication: {before_dedup} → {len(all_records)} ({before_dedup - len(all_records)} removed)")
+    print(f"   Deduplication (book_key): {before_dedup} → {len(all_records)} ({before_dedup - len(all_records)} removed)")
+    
+    # SECOND PASS: Remove Kaggle books where a normalized title+author exists in read books
+    # This handles cases like "Harry Potter..." vs "Harry Potter... (Harry Potter, #1)"
+    # and "J.K. Rowling" vs "J.K. Rowling, Mary GrandPré (Illustrator)"
+    all_records['title_norm_dedup'] = all_records['title'].apply(normalize_title_for_dedup)
+    all_records['author_norm_dedup'] = all_records['author'].apply(normalize_author_for_dedup)
+    all_records['dedup_key'] = all_records['title_norm_dedup'] + '|' + all_records['author_norm_dedup']
+    
+    # Get all dedup keys for read books
+    read_dedup_keys = set(all_records[all_records['is_read']]['dedup_key'].values)
+    
+    # Mark unread books for removal if they match a read book's dedup key
+    before_title_dedup = len(all_records)
+    mask_keep = all_records['is_read'] | ~all_records['dedup_key'].isin(read_dedup_keys)
+    removed_titles = all_records[(~mask_keep)]['title'].tolist()
+    all_records = all_records[mask_keep]
+    
+    if removed_titles:
+        print(f"   Deduplication (title+author): {before_title_dedup} → {len(all_records)} ({len(removed_titles)} Kaggle duplicates removed)")
+        for t in removed_titles[:10]:
+            print(f"      • Removed Kaggle duplicate: {t[:50]}")
+        if len(removed_titles) > 10:
+            print(f"      ... and {len(removed_titles) - 10} more")
+    
+    # Clean up temp columns
+    all_records = all_records.drop(columns=['title_norm_dedup', 'author_norm_dedup', 'dedup_key'])
+    
     print(f"     - Read books: {read_before_dedup} → {all_records['is_read'].sum()} ({read_before_dedup - all_records['is_read'].sum()} lost)")
     
     print(f"   ✓ Final dataset: {len(all_records)} unique books")
