@@ -1,13 +1,13 @@
 {
   "summary": {
-    "total_books": 3750,
+    "total_books": 6931,
     "books_read": 388,
-    "books_unread": 3362,
-    "books_with_descriptions": 3101,
+    "books_unread": 6543,
+    "books_with_descriptions": 6613,
     "five_star_books": 85,
     "average_rating": 3.7,
-    "coverage_percent": 82.7,
-    "generated_at": "2026-01-28T16:36:58.206429"
+    "coverage_percent": 95.4,
+    "generated_at": "2026-01-28T23:02:13.867093"
   },
   "reading_timeline": [
     {
@@ -570,43 +570,63 @@
   "genre_breakdown": [
     {
       "genre": "Nonfiction",
-      "count": 2
+      "count": 74
     },
     {
       "genre": "Self Help",
-      "count": 2
-    },
-    {
-      "genre": "Fantasy",
-      "count": 1
-    },
-    {
-      "genre": "Fiction",
-      "count": 1
-    },
-    {
-      "genre": "Epic Fantasy",
-      "count": 1
-    },
-    {
-      "genre": "Philosophy",
-      "count": 1
-    },
-    {
-      "genre": "Parenting",
-      "count": 1
-    },
-    {
-      "genre": "Science",
-      "count": 1
+      "count": 33
     },
     {
       "genre": "Business",
-      "count": 1
+      "count": 29
     },
     {
-      "genre": "Finance",
-      "count": 1
+      "genre": "Psychology",
+      "count": 16
+    },
+    {
+      "genre": "Fiction",
+      "count": 15
+    },
+    {
+      "genre": "Biography",
+      "count": 10
+    },
+    {
+      "genre": "Philosophy",
+      "count": 8
+    },
+    {
+      "genre": "Fantasy",
+      "count": 7
+    },
+    {
+      "genre": "Religion",
+      "count": 7
+    },
+    {
+      "genre": "Leadership",
+      "count": 7
+    },
+    {
+      "genre": "Epic Fantasy",
+      "count": 6
+    },
+    {
+      "genre": "History",
+      "count": 6
+    },
+    {
+      "genre": "Classics",
+      "count": 5
+    },
+    {
+      "genre": "Spirituality",
+      "count": 5
+    },
+    {
+      "genre": "Lds",
+      "count": 5
     }
   ],
   "rating_distribution": [
@@ -684,7 +704,7 @@
     },
     {
       "shelf": "unread",
-      "count": 3362
+      "count": 6543
     }
   ]
 }

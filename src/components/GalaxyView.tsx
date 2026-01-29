@@ -3,7 +3,7 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Html, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import { GalaxyPoint } from '../App';
-import { RotateCcw, Eye, EyeOff, Info, BookOpen, Table, Maximize2, X, Search, ChevronDown, Check } from 'lucide-react';
+import { RotateCcw, Eye, EyeOff, Info, BookOpen, Table, Maximize2, X, Search, ChevronDown, Check, Pause, Play } from 'lucide-react';
 import BookTable from './BookTable';
 
 // Searchable dropdown component
@@ -156,7 +156,11 @@ const BookPoint: React.FC<BookPointProps> = ({ point, isSelected, onClick, showL
       />
       
       {(hovered || (showLabels && point.my_rating === 5)) && (
-        <Html distanceFactor={15} style={{ pointerEvents: 'none' }}>
+        <Html 
+          center
+          style={{ pointerEvents: 'none', transform: 'translate3d(0, -40px, 0)' }}
+          zIndexRange={[100, 0]}
+        >
           <div className="book-tooltip">
             <strong>{point.title}</strong>
             <span>{point.author}</span>
@@ -189,7 +193,8 @@ const GalaxyScene: React.FC<{
   onSelect: (point: GalaxyPoint | null) => void;
   showLabels: boolean;
   resetTrigger: number;
-}> = ({ points, selectedPoint, onSelect, showLabels, resetTrigger }) => {
+  autoRotate: boolean;
+}> = ({ points, selectedPoint, onSelect, showLabels, resetTrigger, autoRotate }) => {
   return (
     <>
       <CameraController resetTrigger={resetTrigger} />
@@ -229,7 +234,7 @@ const GalaxyScene: React.FC<{
         enablePan={true}
         enableZoom={true}
         enableRotate={true}
-        autoRotate={!selectedPoint}
+        autoRotate={autoRotate && !selectedPoint}
         autoRotateSpeed={0.5}
         maxDistance={30}
         minDistance={3}
@@ -248,6 +253,7 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
   const [resetTrigger, setResetTrigger] = useState(0);
   const [showTable, setShowTable] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [autoRotate, setAutoRotate] = useState(true); // Auto-rotate toggle
   
   // Filter states
   const [readStatusFilter, setReadStatusFilter] = useState<'all' | 'read' | 'unread'>('read'); // Default to read only
@@ -256,6 +262,7 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
   const [yearReadFilter, setYearReadFilter] = useState<string>('all');
   const [genreFilter, setGenreFilter] = useState<string>('all');
   const [keywordSearch, setKeywordSearch] = useState<string>('');
+  const [popularityFilter, setPopularityFilter] = useState<'all' | 'top100' | 'top1000'>('all');
   
   // Extract unique years published
   const availableYearsPublished = useMemo(() => {
@@ -292,6 +299,15 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
     return Array.from(genreSet).sort();
   }, [points]);
   
+  // Get top unread books by popularity
+  const topUnreadByPopularity = useMemo(() => {
+    const unread = points.filter(p => !p.is_read && (p.popularity_score || 0) > 0);
+    return unread.sort((a, b) => (b.popularity_score || 0) - (a.popularity_score || 0));
+  }, [points]);
+  
+  const top100Ids = useMemo(() => new Set(topUnreadByPopularity.slice(0, 100).map(p => p.id)), [topUnreadByPopularity]);
+  const top1000Ids = useMemo(() => new Set(topUnreadByPopularity.slice(0, 1000).map(p => p.id)), [topUnreadByPopularity]);
+  
   // Apply all filters
   const filteredPoints = useMemo(() => {
     let filtered = [...points];
@@ -301,6 +317,13 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
       filtered = filtered.filter(p => p.is_read);
     } else if (readStatusFilter === 'unread') {
       filtered = filtered.filter(p => !p.is_read);
+    }
+    
+    // Popularity filter (only applies to unread books)
+    if (popularityFilter === 'top100') {
+      filtered = filtered.filter(p => p.is_read || top100Ids.has(p.id));
+    } else if (popularityFilter === 'top1000') {
+      filtered = filtered.filter(p => p.is_read || top1000Ids.has(p.id));
     }
     
     // Rating filter
@@ -333,7 +356,7 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
     }
     
     return filtered;
-  }, [points, readStatusFilter, ratingFilter, yearPublishedFilter, yearReadFilter, genreFilter, keywordSearch]);
+  }, [points, readStatusFilter, ratingFilter, yearPublishedFilter, yearReadFilter, genreFilter, keywordSearch, popularityFilter, top100Ids, top1000Ids]);
   
   // Summary stats
   const stats = useMemo(() => ({
@@ -346,7 +369,8 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
   
   // Check if any filters are active (beyond defaults)
   const hasActiveFilters = readStatusFilter !== 'read' || ratingFilter !== 'all' || 
-    yearPublishedFilter !== 'all' || yearReadFilter !== 'all' || genreFilter !== 'all' || keywordSearch.trim() !== '';
+    yearPublishedFilter !== 'all' || yearReadFilter !== 'all' || genreFilter !== 'all' || 
+    keywordSearch.trim() !== '' || popularityFilter !== 'all';
   
   const clearFilters = () => {
     setReadStatusFilter('read');
@@ -355,6 +379,7 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
     setYearReadFilter('all');
     setGenreFilter('all');
     setKeywordSearch('');
+    setPopularityFilter('all');
   };
 
   const handleReset = () => {
@@ -373,18 +398,42 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
         <div className="galaxy-controls">
           <div className="view-toggle">
             <button 
-              className={`toggle-btn ${readStatusFilter === 'read' ? 'active' : ''}`}
-              onClick={() => setReadStatusFilter('read')}
+              className={`toggle-btn ${readStatusFilter === 'read' && popularityFilter === 'all' ? 'active' : ''}`}
+              onClick={() => { setReadStatusFilter('read'); setPopularityFilter('all'); }}
+              title="Show only your read books"
             >
-              📖 Read Only
+              Read Only
             </button>
             <button 
-              className={`toggle-btn ${readStatusFilter === 'all' ? 'active' : ''}`}
-              onClick={() => setReadStatusFilter('all')}
+              className={`toggle-btn ${popularityFilter === 'top100' ? 'active' : ''}`}
+              onClick={() => { setReadStatusFilter('all'); setPopularityFilter('top100'); }}
+              title="Your reads + Top 100 most popular unread"
             >
-              🌌 All Books
+              Top 100
+            </button>
+            <button 
+              className={`toggle-btn ${popularityFilter === 'top1000' ? 'active' : ''}`}
+              onClick={() => { setReadStatusFilter('all'); setPopularityFilter('top1000'); }}
+              title="Your reads + Top 1000 most popular unread"
+            >
+              Top 1K
+            </button>
+            <button 
+              className={`toggle-btn ${readStatusFilter === 'all' && popularityFilter === 'all' ? 'active' : ''}`}
+              onClick={() => { setReadStatusFilter('all'); setPopularityFilter('all'); }}
+              title="Show all books"
+            >
+              All
             </button>
           </div>
+          <button 
+            className={`control-btn ${!autoRotate ? 'active' : ''}`}
+            onClick={() => setAutoRotate(!autoRotate)}
+            title={autoRotate ? "Pause rotation" : "Resume rotation"}
+          >
+            {autoRotate ? <Pause size={18} /> : <Play size={18} />}
+            {autoRotate ? 'Pause' : 'Rotate'}
+          </button>
           <button 
             className={`control-btn ${showLabels ? 'active' : ''}`}
             onClick={() => setShowLabels(!showLabels)}
@@ -447,6 +496,7 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
               onSelect={setSelectedPoint}
               showLabels={showLabels}
               resetTrigger={resetTrigger}
+              autoRotate={autoRotate}
             />
           </Suspense>
         </Canvas>
@@ -535,18 +585,7 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
         </div>
         <div className="filters-row">
           <SearchableSelect
-            label="Status"
-            value={readStatusFilter}
-            options={[
-              { value: 'all', label: 'All Books' },
-              { value: 'read', label: '📖 Read Only' },
-              { value: 'unread', label: '💡 Unread Only' },
-            ]}
-            onChange={(v) => setReadStatusFilter(v as any)}
-          />
-          
-          <SearchableSelect
-            label="Rating"
+            label="My Rating"
             value={ratingFilter === 'all' ? 'all' : String(ratingFilter)}
             options={[
               { value: 'all', label: 'All Ratings' },

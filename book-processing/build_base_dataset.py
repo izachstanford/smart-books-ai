@@ -33,7 +33,8 @@ QUEUE_FILE = OUTPUT_DIR / 'enrichment_queue_v1.csv'
 
 # --- THRESHOLDS ---
 MIN_DESCRIPTION_LENGTH = 80  # Characters
-MIN_KAGGLE_RATINGS_COUNT = 100  # Quality filter for unread corpus
+MIN_KAGGLE_RATINGS_COUNT = 1000  # Minimum ratings for quality filter
+TOP_N_POPULAR_BOOKS = 7000  # Take top N most popular unread books
 DESCRIPTION_EMBEDDING_MAX_CHARS = 2000  # Cap for embedding input
 
 
@@ -258,15 +259,19 @@ def main():
     kaggle['title_norm'] = kaggle['title'].apply(normalize_text)
     
     # Quality filters for unread corpus
+    # Filter to English language books
     kaggle = kaggle[
-        (kaggle['language'] == 'eng') |
-        (kaggle['language'] == 'en-US') |
-        (kaggle['language'] == 'en-GB') |
+        (kaggle['language'] == 'English') |
+        (kaggle['language'].str.contains('English', na=False)) |
         (pd.isna(kaggle['language']))
     ].copy()
+    print(f"   ✓ Language filter: {len(kaggle)} English books")
     
-    if 'ratingCount' in kaggle.columns:
-        kaggle = kaggle[kaggle['ratingCount'] >= MIN_KAGGLE_RATINGS_COUNT].copy()
+    # Filter by minimum ratings and sort by popularity
+    if 'numRatings' in kaggle.columns:
+        kaggle = kaggle[kaggle['numRatings'] >= MIN_KAGGLE_RATINGS_COUNT].copy()
+        kaggle = kaggle.sort_values('numRatings', ascending=False)
+        print(f"   ✓ Ratings filter (>= {MIN_KAGGLE_RATINGS_COUNT}): {len(kaggle)} books")
     
     print(f"   ✓ Filtered Kaggle to {len(kaggle)} quality English books")
     
@@ -292,9 +297,14 @@ def main():
     
     kaggle['is_read'] = kaggle.apply(is_already_read, axis=1)
     
-    # Keep only unread books for the corpus
+    # Keep only unread books for the corpus, limited to top N most popular
     kaggle_unread = kaggle[~kaggle['is_read']].copy()
     print(f"   ✓ {len(kaggle_unread)} unread books from Kaggle (excluded duplicates)")
+    
+    # Limit to top N most popular unread books
+    if len(kaggle_unread) > TOP_N_POPULAR_BOOKS:
+        kaggle_unread = kaggle_unread.head(TOP_N_POPULAR_BOOKS)
+        print(f"   ✓ Limited to top {TOP_N_POPULAR_BOOKS} most popular unread books")
     
     # Prepare Kaggle output schema (no book_id for Kaggle books)
     kaggle_records = pd.DataFrame({
@@ -315,8 +325,8 @@ def main():
         'genre_primary': 'Unknown',
         'cover_image_url': kaggle_unread.get('coverImg', ''),
         'avg_rating': kaggle_unread.get('rating'),
-        'num_ratings': kaggle_unread.get('ratingCount'),
-        'popularity_score': kaggle_unread.get('ratingCount'),  # Simple proxy
+        'num_ratings': kaggle_unread.get('numRatings'),
+        'popularity_score': kaggle_unread.get('numRatings'),  # Simple proxy - number of ratings
         'is_read': False,
         'my_rating': None,
         'date_read': None,
@@ -353,6 +363,10 @@ def main():
             gr_records.at[idx, 'cover_image_url'] = kaggle_match.get('coverImg', '')
             if pd.isna(row['avg_rating']):
                 gr_records.at[idx, 'avg_rating'] = kaggle_match.get('rating')
+            # Backfill popularity_score (numRatings) from Kaggle
+            if pd.isna(row['popularity_score']) or row['popularity_score'] == 0:
+                gr_records.at[idx, 'popularity_score'] = kaggle_match.get('numRatings', 0)
+                gr_records.at[idx, 'num_ratings'] = kaggle_match.get('numRatings', 0)
             backfill_count += 1
     
     print(f"   ✓ Backfilled {backfill_count}/{len(gr_records)} Goodreads books from Kaggle")

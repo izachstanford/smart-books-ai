@@ -40,15 +40,17 @@ export interface GalaxyPoint {
   title: string;
   author: string;
   my_rating: number;
+  avg_rating: number;
   shelf: string;
-  is_read: boolean;  // ⭐ NEW: Read status
-  date_read?: string | null;  // ⭐ NEW: Date read
+  is_read: boolean;
+  date_read?: string | null;
   cover_url: string | null;
   genres: string[];
   genre_primary?: string;
   pages: number | null;
   year_published?: number | null;
   popularity_score?: number;
+  num_ratings?: number;
   x: number;
   y: number;
   z: number;

@@ -151,15 +151,17 @@ def run_pipeline():
                 'title': book['title'],
                 'author': book['author'],
                 'my_rating': book.get('my_rating', 0),
+                'avg_rating': book.get('avg_rating', 0),
                 'shelf': book.get('shelf', 'unread'),
                 'is_read': book.get('is_read', False),
-                'date_read': book.get('date_read'),  # Added for filtering/sorting
+                'date_read': book.get('date_read'),
                 'cover_url': book.get('cover_url'),
                 'genres': parse_genres(book.get('genres', '[]'))[:3],
                 'genre_primary': book.get('genre_primary', 'Unknown'),
                 'pages': book.get('pages'),
                 'year_published': book.get('year_published'),
                 'popularity_score': book.get('popularity_score', 0),
+                'num_ratings': book.get('popularity_score', 0),  # Same as popularity_score for display
                 'x': float(coords_3d[i, 0]),
                 'y': float(coords_3d[i, 1]),
                 'z': float(coords_3d[i, 2]),

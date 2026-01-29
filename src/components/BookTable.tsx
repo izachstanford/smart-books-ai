@@ -9,7 +9,7 @@ interface Props {
   onSelectBook?: (book: GalaxyPoint) => void;
 }
 
-type SortField = 'title' | 'author' | 'my_rating' | 'shelf' | 'pages' | 'date_read';
+type SortField = 'title' | 'author' | 'my_rating' | 'avg_rating' | 'shelf' | 'popularity_score' | 'date_read';
 type SortDirection = 'asc' | 'desc';
 
 /**
@@ -119,7 +119,10 @@ const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
                 Author <SortIcon field="author" />
               </th>
               <th className="sortable rating-col" onClick={() => handleSort('my_rating')}>
-                Rating <SortIcon field="my_rating" />
+                My Rating <SortIcon field="my_rating" />
+              </th>
+              <th className="sortable avg-rating-col" onClick={() => handleSort('avg_rating')}>
+                Avg <SortIcon field="avg_rating" />
               </th>
               <th className="sortable shelf-col" onClick={() => handleSort('shelf')}>
                 Shelf <SortIcon field="shelf" />
@@ -128,8 +131,8 @@ const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
                 Date Read <SortIcon field="date_read" />
               </th>
               <th className="genres-col">Genres</th>
-              <th className="sortable pages-col" onClick={() => handleSort('pages')}>
-                Pages <SortIcon field="pages" />
+              <th className="sortable ratings-col" onClick={() => handleSort('popularity_score')}>
+                # Ratings <SortIcon field="popularity_score" />
               </th>
             </tr>
           </thead>
@@ -154,6 +157,9 @@ const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
                 </td>
                 <td className="author-cell">{book.author}</td>
                 <td className="rating-cell">{renderStars(book.my_rating)}</td>
+                <td className="avg-rating-cell">
+                  {book.avg_rating ? book.avg_rating.toFixed(2) : '—'}
+                </td>
                 <td className="shelf-cell">
                   <span className={`shelf-badge ${book.shelf}`}>
                     {book.shelf === 'read' ? '✅' : '📚'} {book.shelf}
@@ -172,7 +178,9 @@ const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
                     )}
                   </div>
                 </td>
-                <td className="pages-cell">{book.pages || '—'}</td>
+                <td className="ratings-cell">
+                  {book.popularity_score ? book.popularity_score.toLocaleString() : '—'}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -426,7 +434,8 @@ const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
         .rating-col { width: 100px; }
         .shelf-col { width: 100px; }
         .date-col { width: 110px; }
-        .pages-col { width: 80px; }
+        .avg-rating-col { width: 70px; }
+        .ratings-col { width: 100px; }
         .genres-col { width: 180px; }
         
         .book-table td {
@@ -587,7 +596,8 @@ const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
           }
           
           .genres-col,
-          .pages-col {
+          .ratings-col,
+          .avg-rating-col {
             display: none;
           }
         }
