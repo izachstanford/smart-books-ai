@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
-  Database, Brain, Search, MessageSquare, Cpu, 
-  ArrowRight, Layers, GitBranch, Zap, Code,
+  Database, Brain, Search, Cpu, 
+  ArrowRight, Layers, GitBranch, Code,
   CheckCircle, FileText, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { AnalyticsData } from '../App';
@@ -52,22 +52,22 @@ const Architecture: React.FC<Props> = ({ analytics }) => {
         <h3>🛠️ Tech Stack</h3>
         <div className="tech-grid">
           <TechBadge
-            name="LlamaIndex"
-            icon={<Layers size={20} />}
-            description="RAG orchestration framework"
+            name="Sentence Transformers"
+            icon={<Brain size={20} />}
+            description="Offline embedding generation (Python)"
             color="#9d4edd"
+          />
+          <TechBadge
+            name="Transformers.js"
+            icon={<Cpu size={20} />}
+            description="Client-side embeddings (browser)"
+            color="#00f5d4"
           />
           <TechBadge
             name="ChromaDB"
             icon={<Database size={20} />}
-            description="Vector database for embeddings"
+            description="Vector database for preprocessing"
             color="#4da6ff"
-          />
-          <TechBadge
-            name="Sentence Transformers"
-            icon={<Brain size={20} />}
-            description="Local embedding generation"
-            color="#00f5d4"
           />
           <TechBadge
             name="React + Three.js"
@@ -76,15 +76,15 @@ const Architecture: React.FC<Props> = ({ analytics }) => {
             color="#ffd93d"
           />
           <TechBadge
-            name="Anthropic Claude"
-            icon={<MessageSquare size={20} />}
-            description="LLM for chat & reasoning"
+            name="UMAP"
+            icon={<GitBranch size={20} />}
+            description="Dimensionality reduction (3D map)"
             color="#ff6b9d"
           />
           <TechBadge
-            name="Netlify Functions"
-            icon={<Zap size={20} />}
-            description="Serverless API endpoints"
+            name="Python Pipeline"
+            icon={<Layers size={20} />}
+            description="Data enrichment & preprocessing"
             color="#ff8c42"
           />
         </div>
@@ -141,10 +141,10 @@ const Architecture: React.FC<Props> = ({ analytics }) => {
                 </div>
                 <div className="step-info">
                   <h4>3. Embeddings</h4>
-                  <p>Sentence Transformers (all-MiniLM-L6-v2)</p>
+                  <p>Sentence Transformers + Transformers.js</p>
                   <div className="step-stats">
                     <span>384 dimensions</span>
-                    <span>~50ms per book</span>
+                    <span>Client-side inference</span>
                   </div>
                 </div>
               </div>
@@ -256,21 +256,116 @@ merged = pd.merge(unmatched, kaggle,
         )}
       </section>
 
-      {/* RAG Process */}
+      {/* Vector Mathematics */}
+      <section className="vector-math-section">
+        <div 
+          className="section-header clickable"
+          onClick={() => toggleSection('math')}
+        >
+          <h3>🧮 Vector Mathematics</h3>
+          {expandedSection === 'math' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+        </div>
+        
+        {expandedSection === 'math' && (
+          <div className="math-content animate-slideUp">
+            <p className="math-intro">
+              <strong>Cosine similarity</strong> measures the angle between two vectors in high-dimensional space.
+              It's perfect for comparing semantic meaning because the direction matters more than magnitude.
+            </p>
+            
+            <div className="math-grid">
+              <div className="math-card">
+                <div className="math-title">Cosine Similarity Formula</div>
+                <div className="math-formula">
+                  cos(θ) = (A · B) / (||A|| × ||B||)
+                </div>
+                <div className="math-explanation">
+                  Where A is your taste vector, B is a book vector, and the result ranges from -1 (opposite) to +1 (identical)
+                </div>
+              </div>
+              
+              <div className="math-card">
+                <div className="math-title">Dot Product</div>
+                <div className="math-formula">
+                  A · B = Σ(aᵢ × bᵢ)
+                </div>
+                <div className="math-explanation">
+                  Sum of element-wise products across all 384 dimensions
+                </div>
+              </div>
+              
+              <div className="math-card">
+                <div className="math-title">Vector Magnitude</div>
+                <div className="math-formula">
+                  ||A|| = √(Σ(aᵢ²))
+                </div>
+                <div className="math-explanation">
+                  Euclidean length of the vector in 384-dimensional space
+                </div>
+              </div>
+            </div>
+            
+            <div className="similarity-example">
+              <h4>Example Calculation</h4>
+              <div className="calc-steps">
+                <div className="calc-step">
+                  <span className="step-label">Given:</span>
+                  <span className="step-value">Your taste vector (384 dims) and "Project Hail Mary" vector (384 dims)</span>
+                </div>
+                <div className="calc-step">
+                  <span className="step-label">Dot Product:</span>
+                  <span className="step-value">Σ(tasteᵢ × bookᵢ) = 15.847</span>
+                </div>
+                <div className="calc-step">
+                  <span className="step-label">Magnitudes:</span>
+                  <span className="step-value">||taste|| = 19.596, ||book|| = 19.234</span>
+                </div>
+                <div className="calc-step">
+                  <span className="step-label">Result:</span>
+                  <span className="step-value highlight">cos(θ) = 15.847 / (19.596 × 19.234) = 0.42 = 42% similarity</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="why-cosine">
+              <h4>Why Cosine Similarity?</h4>
+              <div className="reason-grid">
+                <div className="reason-card">
+                  <div className="reason-icon">📐</div>
+                  <h5>Direction over Magnitude</h5>
+                  <p>Focuses on the angle between vectors, not their length. "Very sci-fi" and "somewhat sci-fi" point the same direction.</p>
+                </div>
+                <div className="reason-card">
+                  <div className="reason-icon">⚡</div>
+                  <h5>Computationally Efficient</h5>
+                  <p>Simple dot product and square roots. Fast even across thousands of books in real-time.</p>
+                </div>
+                <div className="reason-card">
+                  <div className="reason-icon">🎯</div>
+                  <h5>Normalized Output</h5>
+                  <p>Always between -1 and 1, making results intuitive and easy to threshold (e.g., &gt;0.7 = good match).</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Semantic Search Process */}
       <section className="rag-section">
         <div 
           className="section-header clickable"
           onClick={() => toggleSection('rag')}
         >
-          <h3>🔄 RAG Process</h3>
+          <h3>🔍 Semantic Search Process</h3>
           {expandedSection === 'rag' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
         </div>
         
         {expandedSection === 'rag' && (
           <div className="rag-content animate-slideUp">
             <p className="rag-intro">
-              <strong>Retrieval-Augmented Generation (RAG)</strong> combines search with LLMs. 
-              Instead of the LLM making up facts, we first retrieve relevant context, then ask the LLM to reason over it.
+              <strong>Client-Side Semantic Search</strong> runs entirely in your browser using transformers.js. 
+              No API calls, no server costs, complete privacy - all recommendations happen locally using vector similarity math.
             </p>
             
             <div className="rag-flow">
@@ -278,46 +373,46 @@ merged = pd.merge(unmatched, kaggle,
                 <div className="rag-num">1</div>
                 <div className="rag-content-inner">
                   <h4>Query Embedding</h4>
-                  <p>User question → 384-dim vector</p>
-                  <code>"Find cozy mysteries"</code>
+                  <p>User query → 384-dim vector (browser)</p>
+                  <code>"cozy mysteries"</code>
                 </div>
               </div>
               
               <div className="rag-step">
                 <div className="rag-num">2</div>
                 <div className="rag-content-inner">
-                  <h4>Vector Search</h4>
-                  <p>Find nearest neighbors in ChromaDB</p>
-                  <code>Top 10 similar books</code>
+                  <h4>Similarity Computation</h4>
+                  <p>Cosine similarity with all book vectors</p>
+                  <code>Compare 10,000 books</code>
                 </div>
               </div>
               
               <div className="rag-step">
                 <div className="rag-num">3</div>
                 <div className="rag-content-inner">
-                  <h4>Context Building</h4>
-                  <p>Format retrieved books as prompt context</p>
-                  <code>"Given these books: ..."</code>
+                  <h4>Ranking & Filtering</h4>
+                  <p>Sort by similarity score, apply filters</p>
+                  <code>Top 20 matches</code>
                 </div>
               </div>
               
               <div className="rag-step">
                 <div className="rag-num">4</div>
                 <div className="rag-content-inner">
-                  <h4>LLM Generation</h4>
-                  <p>Claude reasons over context to answer</p>
-                  <code>Grounded recommendations</code>
+                  <h4>Results Display</h4>
+                  <p>3D visualization + ranked cards</p>
+                  <code>Interactive UI</code>
                 </div>
               </div>
             </div>
             
             <div className="rag-benefits">
-              <h4>Why RAG?</h4>
+              <h4>Why Client-Side?</h4>
               <ul>
-                <li><CheckCircle size={16} /> <strong>Grounded:</strong> Answers based on your actual books</li>
-                <li><CheckCircle size={16} /> <strong>Current:</strong> No knowledge cutoff - uses your data</li>
-                <li><CheckCircle size={16} /> <strong>Transparent:</strong> Can cite which books informed the answer</li>
-                <li><CheckCircle size={16} /> <strong>Private:</strong> Your library stays in your control</li>
+                <li><CheckCircle size={16} /> <strong>Private:</strong> All computation happens in your browser</li>
+                <li><CheckCircle size={16} /> <strong>Fast:</strong> No network latency, instant results</li>
+                <li><CheckCircle size={16} /> <strong>Free:</strong> No API costs or rate limits</li>
+                <li><CheckCircle size={16} /> <strong>Offline-Ready:</strong> Works without internet after initial load</li>
               </ul>
             </div>
           </div>
@@ -368,8 +463,8 @@ merged = pd.merge(unmatched, kaggle,
                 <ul>
                   <li><strong>Clusters</strong> = Books with similar themes/genres</li>
                   <li><strong>Distance</strong> = Semantic difference between books</li>
-                  <li><strong>Color</strong> = Your rating (gold=5★, blue=4★)</li>
-                  <li><strong>Size</strong> = Page count</li>
+                  <li><strong>Color</strong> = Your rating (yellow=5-3★, blue=2-1★, gray=unread)</li>
+                  <li><strong>Position</strong> = Preserved from 384D semantic space</li>
                 </ul>
               </div>
             </div>
@@ -408,8 +503,8 @@ merged = pd.merge(unmatched, kaggle,
       <section className="learn-more">
         <h3>📚 Learn More</h3>
         <div className="resource-links">
-          <a href="https://docs.llamaindex.ai/" target="_blank" rel="noopener noreferrer">
-            LlamaIndex Docs →
+          <a href="https://huggingface.co/docs/transformers.js/" target="_blank" rel="noopener noreferrer">
+            Transformers.js Docs →
           </a>
           <a href="https://docs.trychroma.com/" target="_blank" rel="noopener noreferrer">
             ChromaDB Guide →
@@ -419,6 +514,9 @@ merged = pd.merge(unmatched, kaggle,
           </a>
           <a href="https://umap-learn.readthedocs.io/" target="_blank" rel="noopener noreferrer">
             UMAP Algorithm →
+          </a>
+          <a href="https://threejs.org/docs/" target="_blank" rel="noopener noreferrer">
+            Three.js Documentation →
           </a>
         </div>
       </section>
@@ -719,6 +817,134 @@ merged = pd.merge(unmatched, kaggle,
           text-transform: uppercase;
         }
         
+        /* Vector Math */
+        .math-intro {
+          margin-bottom: var(--space-lg);
+          padding: var(--space-md);
+          background: rgba(0, 245, 212, 0.1);
+          border-left: 3px solid var(--color-aurora);
+          border-radius: var(--radius-sm);
+        }
+        
+        .math-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: var(--space-md);
+          margin-bottom: var(--space-xl);
+        }
+        
+        .math-card {
+          background: var(--color-nebula-dark);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-md);
+          padding: var(--space-lg);
+        }
+        
+        .math-title {
+          font-size: 0.75rem;
+          color: var(--color-text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: var(--space-sm);
+        }
+        
+        .math-formula {
+          font-family: var(--font-mono);
+          font-size: 1.1rem;
+          color: var(--color-aurora);
+          margin-bottom: var(--space-sm);
+        }
+        
+        .math-explanation {
+          font-size: 0.75rem;
+          color: var(--color-text-secondary);
+          line-height: 1.5;
+        }
+        
+        .similarity-example {
+          padding: var(--space-lg);
+          background: var(--gradient-card);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-lg);
+          margin-bottom: var(--space-xl);
+        }
+        
+        .similarity-example h4 {
+          margin-bottom: var(--space-md);
+          color: var(--color-cosmic-purple);
+        }
+        
+        .calc-steps {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-sm);
+        }
+        
+        .calc-step {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: var(--space-sm) var(--space-md);
+          background: var(--color-nebula);
+          border-radius: var(--radius-sm);
+        }
+        
+        .step-label {
+          font-size: 0.8rem;
+          color: var(--color-text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          min-width: 120px;
+        }
+        
+        .step-value {
+          font-family: var(--font-mono);
+          font-size: 0.85rem;
+          color: var(--color-text-secondary);
+          flex: 1;
+        }
+        
+        .step-value.highlight {
+          color: var(--color-aurora);
+          font-weight: 600;
+        }
+        
+        .why-cosine h4 {
+          margin-bottom: var(--space-md);
+          color: var(--color-cosmic-purple);
+        }
+        
+        .reason-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: var(--space-md);
+        }
+        
+        .reason-card {
+          padding: var(--space-lg);
+          background: var(--color-nebula-dark);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-md);
+          text-align: center;
+        }
+        
+        .reason-icon {
+          font-size: 2rem;
+          margin-bottom: var(--space-sm);
+        }
+        
+        .reason-card h5 {
+          font-size: 0.9rem;
+          margin-bottom: var(--space-sm);
+          color: var(--color-text-primary);
+        }
+        
+        .reason-card p {
+          font-size: 0.8rem;
+          color: var(--color-text-secondary);
+          line-height: 1.5;
+        }
+        
         /* RAG */
         .rag-intro {
           margin-bottom: var(--space-lg);
@@ -962,6 +1188,17 @@ merged = pd.merge(unmatched, kaggle,
           
           .model-stats {
             grid-template-columns: repeat(2, 1fr);
+          }
+          
+          .math-grid,
+          .reason-grid {
+            grid-template-columns: 1fr;
+          }
+          
+          .calc-step {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: var(--space-xs);
           }
         }
       `}</style>

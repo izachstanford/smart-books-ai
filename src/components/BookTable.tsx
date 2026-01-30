@@ -17,9 +17,9 @@ type SortDirection = 'asc' | 'desc';
  * Shows below Galaxy View (filtering is handled by the parent component)
  */
 const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
-  // Sort states
-  const [sortField, setSortField] = useState<SortField>('title');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  // Sort states - default to rating descending
+  const [sortField, setSortField] = useState<SortField>('my_rating');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);

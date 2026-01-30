@@ -3,7 +3,7 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Html, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import { GalaxyPoint } from '../App';
-import { RotateCcw, Eye, EyeOff, Info, BookOpen, Table, Maximize2, X, Search, ChevronDown, Check, Pause, Play } from 'lucide-react';
+import { RotateCcw, Eye, EyeOff, Info, BookOpen, Table, Maximize2, X, Search, ChevronDown, Check, Pause, Play, Focus } from 'lucide-react';
 import BookTable from './BookTable';
 
 // Searchable dropdown component
@@ -159,18 +159,51 @@ const BookPoint: React.FC<BookPointProps> = ({ point, isSelected, onClick, showL
         opacity={point.is_read ? 0.95 : 0.85}  // Unread slightly more transparent
       />
       
-      {(hovered || (showLabels && point.my_rating === 5)) && (
+      {/* Simple label for 5-star books when labels enabled */}
+      {!hovered && showLabels && point.my_rating === 5 && (
         <Html 
           center
-          style={{ pointerEvents: 'none', transform: 'translate3d(0, -40px, 0)' }}
+          style={{ pointerEvents: 'none', transform: 'translate3d(0, -30px, 0)' }}
           zIndexRange={[100, 0]}
         >
-          <div className="book-tooltip">
-            <strong>{point.title}</strong>
-            <span>{point.author}</span>
-            {point.my_rating > 0 && (
-              <span className="tooltip-rating">{'★'.repeat(point.my_rating)}</span>
+          <div className="book-label-simple">
+            {point.title.length > 25 ? point.title.substring(0, 25) + '...' : point.title}
+          </div>
+        </Html>
+      )}
+      
+      {/* Rich tooltip on hover - appears in 3D space */}
+      {hovered && (
+        <Html 
+          center
+          style={{ pointerEvents: 'none', transform: 'translate3d(120px, 0, 0)' }}
+          zIndexRange={[100, 0]}
+        >
+          <div className="book-tooltip-rich">
+            {point.cover_url ? (
+              <img src={point.cover_url} alt="" className="tooltip-cover" />
+            ) : (
+              <div className="tooltip-cover-placeholder">📚</div>
             )}
+            <div className="tooltip-content">
+              <strong className="tooltip-title">{point.title}</strong>
+              <span className="tooltip-author">{point.author}</span>
+              <div className="tooltip-meta">
+                {point.my_rating > 0 && (
+                  <span className="tooltip-rating">{'★'.repeat(point.my_rating)}</span>
+                )}
+                <span className={`tooltip-badge ${point.is_read ? 'read' : 'unread'}`}>
+                  {point.is_read ? '✅ Read' : '📖 Unread'}
+                </span>
+              </div>
+              {point.genres && point.genres.length > 0 && (
+                <div className="tooltip-genres">
+                  {point.genres.slice(0, 2).map((g, i) => (
+                    <span key={i} className="tooltip-genre">{g}</span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </Html>
       )}
@@ -259,14 +292,25 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true); // Auto-rotate toggle
   
+  // Selection/zoom states
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectionBounds, setSelectionBounds] = useState<{
+    minX: number; maxX: number;
+    minY: number; maxY: number;
+    minZ: number; maxZ: number;
+  } | null>(null);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null);
+  const [selectionEnd, setSelectionEnd] = useState<{ x: number; y: number } | null>(null);
+  
   // Filter states
-  const [readStatusFilter, setReadStatusFilter] = useState<'all' | 'read' | 'unread'>('read'); // Default to read only
+  const [readStatusFilter, setReadStatusFilter] = useState<'all' | 'read' | 'unread'>('all'); // Default to all for top1k
   const [ratingFilter, setRatingFilter] = useState<number | 'all'>('all');
   const [yearPublishedFilter, setYearPublishedFilter] = useState<string>('all');
   const [yearReadFilter, setYearReadFilter] = useState<string>('all');
   const [genreFilter, setGenreFilter] = useState<string>('all');
   const [keywordSearch, setKeywordSearch] = useState<string>('');
-  const [popularityFilter, setPopularityFilter] = useState<'all' | 'top100' | 'top1000'>('all');
+  const [popularityFilter, setPopularityFilter] = useState<'all' | 'top100' | 'top1000'>('top1000'); // Default to top 1k
   
   // Extract unique years published
   const availableYearsPublished = useMemo(() => {
@@ -359,8 +403,57 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
       );
     }
     
+    // Selection bounds filter (hyper zoom)
+    if (selectionBounds) {
+      filtered = filtered.filter(p => {
+        const px = p.x * 8;
+        const py = p.y * 8;
+        const pz = p.z * 8;
+        return px >= selectionBounds.minX && px <= selectionBounds.maxX &&
+               py >= selectionBounds.minY && py <= selectionBounds.maxY &&
+               pz >= selectionBounds.minZ && pz <= selectionBounds.maxZ;
+      });
+    }
+    
     return filtered;
-  }, [points, readStatusFilter, ratingFilter, yearPublishedFilter, yearReadFilter, genreFilter, keywordSearch, popularityFilter, top100Ids, top1000Ids]);
+  }, [points, readStatusFilter, ratingFilter, yearPublishedFilter, yearReadFilter, genreFilter, keywordSearch, popularityFilter, top100Ids, top1000Ids, selectionBounds]);
+  
+  // Rescale points when selection is active (spread them out to fill the space)
+  const displayPoints = useMemo(() => {
+    if (!selectionBounds || filteredPoints.length === 0) {
+      return filteredPoints;
+    }
+    
+    // Calculate the actual bounds of filtered points
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    let minZ = Infinity, maxZ = -Infinity;
+    
+    filteredPoints.forEach(p => {
+      const px = p.x * 8;
+      const py = p.y * 8;
+      const pz = p.z * 8;
+      minX = Math.min(minX, px);
+      maxX = Math.max(maxX, px);
+      minY = Math.min(minY, py);
+      maxY = Math.max(maxY, py);
+      minZ = Math.min(minZ, pz);
+      maxZ = Math.max(maxZ, pz);
+    });
+    
+    // Rescale to fill the full -8 to 8 range (spreading points apart)
+    const rangeX = maxX - minX || 1;
+    const rangeY = maxY - minY || 1;
+    const rangeZ = maxZ - minZ || 1;
+    
+    return filteredPoints.map(p => ({
+      ...p,
+      // Rescale coordinates to spread out the cluster
+      x: ((p.x * 8 - minX) / rangeX - 0.5) * 2, // Maps to -1 to 1, then BookPoint multiplies by 8
+      y: ((p.y * 8 - minY) / rangeY - 0.5) * 2,
+      z: ((p.z * 8 - minZ) / rangeZ - 0.5) * 2,
+    }));
+  }, [filteredPoints, selectionBounds]);
   
   // Summary stats
   const stats = useMemo(() => ({
@@ -372,18 +465,20 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
   }), [points, filteredPoints]);
   
   // Check if any filters are active (beyond defaults)
-  const hasActiveFilters = readStatusFilter !== 'read' || ratingFilter !== 'all' || 
+  const hasActiveFilters = readStatusFilter !== 'all' || ratingFilter !== 'all' || 
     yearPublishedFilter !== 'all' || yearReadFilter !== 'all' || genreFilter !== 'all' || 
-    keywordSearch.trim() !== '' || popularityFilter !== 'all';
+    keywordSearch.trim() !== '' || popularityFilter !== 'top1000' || selectionBounds !== null;
   
   const clearFilters = () => {
-    setReadStatusFilter('read');
+    setReadStatusFilter('all');
     setRatingFilter('all');
     setYearPublishedFilter('all');
     setYearReadFilter('all');
     setGenreFilter('all');
     setKeywordSearch('');
-    setPopularityFilter('all');
+    setPopularityFilter('top1000');
+    setSelectionBounds(null);
+    setSelectionMode(false);
   };
 
   const handleReset = () => {
@@ -466,20 +561,48 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
             <Table size={18} />
             Table
           </button>
+          <button 
+            className={`control-btn ${selectionMode ? 'active selection-active' : ''}`}
+            onClick={() => {
+              if (selectionMode) {
+                setSelectionMode(false);
+              } else {
+                setSelectionMode(true);
+                setAutoRotate(false); // Disable rotation during selection
+              }
+            }}
+            title="Select region to zoom"
+          >
+            <Focus size={18} />
+            {selectionMode ? 'Selecting...' : 'Select'}
+          </button>
+          {selectionBounds && (
+            <button 
+              className="control-btn clear-selection"
+              onClick={() => {
+                setSelectionBounds(null);
+                setSelectionMode(false);
+              }}
+              title="Clear selection"
+            >
+              <X size={18} />
+              Clear Zoom
+            </button>
+          )}
         </div>
       </div>
 
       <div className="galaxy-stats">
         <div className="stat">
           <span className="stat-num">{stats.showing}</span>
-          <span className="stat-label">Showing</span>
+          <span className="stat-label">{selectionBounds ? '🔍 Zoomed' : 'Showing'}</span>
         </div>
         <div className="stat">
-          <span className="stat-num" style={{ color: '#00f5d4' }}>{stats.read}</span>
+          <span className="stat-num" style={{ color: '#fbbf24' }}>{stats.read}</span>
           <span className="stat-label">Read</span>
         </div>
         <div className="stat">
-          <span className="stat-num" style={{ color: '#ffd93d' }}>{stats.unread}</span>
+          <span className="stat-num" style={{ color: '#94a3b8' }}>{stats.unread}</span>
           <span className="stat-label">Unread</span>
         </div>
         <div className="stat">
@@ -495,7 +618,7 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
         >
           <Suspense fallback={null}>
             <GalaxyScene
-              points={filteredPoints}
+              points={displayPoints}
               selectedPoint={selectedPoint}
               onSelect={setSelectedPoint}
               showLabels={showLabels}
@@ -504,6 +627,81 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
             />
           </Suspense>
         </Canvas>
+        
+        {/* Selection overlay for drawing selection box */}
+        {selectionMode && (
+          <div 
+            className="selection-overlay"
+            onMouseDown={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              setIsSelecting(true);
+              setSelectionStart({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+              setSelectionEnd({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+            }}
+            onMouseMove={(e) => {
+              if (isSelecting && selectionStart) {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setSelectionEnd({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+              }
+            }}
+            onMouseUp={(e) => {
+              if (isSelecting && selectionStart && selectionEnd) {
+                // Convert 2D selection to approximate 3D bounds
+                // Use the center of visible points to estimate depth
+                const rect = e.currentTarget.getBoundingClientRect();
+                const width = rect.width;
+                const height = rect.height;
+                
+                // Normalize selection coordinates to -1 to 1 range
+                const minScreenX = Math.min(selectionStart.x, selectionEnd.x);
+                const maxScreenX = Math.max(selectionStart.x, selectionEnd.x);
+                const minScreenY = Math.min(selectionStart.y, selectionEnd.y);
+                const maxScreenY = Math.max(selectionStart.y, selectionEnd.y);
+                
+                // Convert to normalized coordinates (-8 to 8 range to match 3D space)
+                const normalizedMinX = ((minScreenX / width) * 2 - 1) * 12;
+                const normalizedMaxX = ((maxScreenX / width) * 2 - 1) * 12;
+                const normalizedMinY = ((1 - maxScreenY / height) * 2 - 1) * 12; // Y inverted
+                const normalizedMaxY = ((1 - minScreenY / height) * 2 - 1) * 12;
+                
+                // Set generous Z bounds since we're selecting from a 2D projection
+                setSelectionBounds({
+                  minX: normalizedMinX,
+                  maxX: normalizedMaxX,
+                  minY: normalizedMinY,
+                  maxY: normalizedMaxY,
+                  minZ: -15,
+                  maxZ: 15
+                });
+                
+                setSelectionMode(false);
+              }
+              setIsSelecting(false);
+              setSelectionStart(null);
+              setSelectionEnd(null);
+            }}
+            onMouseLeave={() => {
+              setIsSelecting(false);
+              setSelectionStart(null);
+              setSelectionEnd(null);
+            }}
+          >
+            <div className="selection-instructions">
+              🎯 Click and drag to select a region
+            </div>
+            {isSelecting && selectionStart && selectionEnd && (
+              <div 
+                className="selection-box"
+                style={{
+                  left: Math.min(selectionStart.x, selectionEnd.x),
+                  top: Math.min(selectionStart.y, selectionEnd.y),
+                  width: Math.abs(selectionEnd.x - selectionStart.x),
+                  height: Math.abs(selectionEnd.y - selectionStart.y),
+                }}
+              />
+            )}
+          </div>
+        )}
         
         <div className="galaxy-legend">
           <div className="legend-item">
@@ -1090,6 +1288,53 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
           height: 100vh;
         }
         
+        .selection-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          cursor: crosshair;
+          background: rgba(139, 92, 246, 0.1);
+          z-index: 10;
+        }
+        
+        .selection-instructions {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: rgba(10, 10, 26, 0.9);
+          padding: var(--space-md) var(--space-lg);
+          border-radius: var(--radius-md);
+          border: 1px solid var(--color-accent);
+          color: var(--color-text);
+          font-size: 1rem;
+          pointer-events: none;
+        }
+        
+        .selection-box {
+          position: absolute;
+          border: 2px dashed var(--color-accent);
+          background: rgba(139, 92, 246, 0.2);
+          pointer-events: none;
+        }
+        
+        .control-btn.selection-active {
+          background: var(--color-accent);
+          color: white;
+        }
+        
+        .control-btn.clear-selection {
+          background: rgba(239, 68, 68, 0.2);
+          border-color: #ef4444;
+          color: #ef4444;
+        }
+        
+        .control-btn.clear-selection:hover {
+          background: rgba(239, 68, 68, 0.3);
+        }
+        
         .galaxy-legend {
           position: absolute;
           top: var(--space-md);
@@ -1120,14 +1365,17 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
         
         .selected-book-panel {
           position: absolute;
-          bottom: var(--space-lg);
+          top: 80px;
           right: var(--space-lg);
           width: 320px;
+          max-height: calc(100% - 100px);
+          overflow-y: auto;
           background: rgba(10, 10, 26, 0.95);
           backdrop-filter: blur(20px);
           border: 1px solid var(--color-border);
           border-radius: var(--radius-lg);
           padding: var(--space-lg);
+          z-index: 20;
         }
         
         .panel-close {
@@ -1224,28 +1472,116 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
         }
         
         /* Tooltip styles (rendered in Three.js Html) */
-        .book-tooltip {
-          background: rgba(10, 10, 26, 0.95);
+        /* Simple label for 5-star books */
+        .book-label-simple {
+          background: rgba(10, 10, 26, 0.9);
           border: 1px solid var(--color-cosmic-purple);
           border-radius: var(--radius-sm);
-          padding: var(--space-sm);
+          padding: 4px 8px;
+          font-size: 0.7rem;
+          color: var(--color-text-primary);
           white-space: nowrap;
+        }
+        
+        /* Rich tooltip with cover image */
+        .book-tooltip-rich {
+          background: rgba(10, 10, 26, 0.98);
+          border: 1px solid var(--color-cosmic-purple);
+          border-radius: var(--radius-md);
+          padding: 12px;
+          display: flex;
+          gap: 12px;
+          min-width: 280px;
+          max-width: 350px;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+        
+        .tooltip-cover {
+          width: 60px;
+          height: 90px;
+          object-fit: cover;
+          border-radius: var(--radius-sm);
+          flex-shrink: 0;
+        }
+        
+        .tooltip-cover-placeholder {
+          width: 60px;
+          height: 90px;
+          background: rgba(139, 92, 246, 0.2);
+          border-radius: var(--radius-sm);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.5rem;
+          flex-shrink: 0;
+        }
+        
+        .tooltip-content {
           display: flex;
           flex-direction: column;
-          gap: 2px;
-          font-size: 0.75rem;
+          gap: 4px;
+          min-width: 0;
         }
         
-        .book-tooltip strong {
+        .tooltip-title {
+          font-size: 0.9rem;
+          font-weight: 600;
           color: var(--color-text-primary);
+          line-height: 1.2;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
         }
         
-        .book-tooltip span {
+        .tooltip-author {
+          font-size: 0.8rem;
           color: var(--color-text-secondary);
         }
         
+        .tooltip-meta {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 4px;
+        }
+        
         .tooltip-rating {
-          color: var(--color-star-gold) !important;
+          color: var(--color-star-gold);
+          font-size: 0.85rem;
+        }
+        
+        .tooltip-badge {
+          font-size: 0.7rem;
+          padding: 2px 8px;
+          border-radius: 10px;
+          font-weight: 500;
+        }
+        
+        .tooltip-badge.read {
+          background: rgba(34, 197, 94, 0.2);
+          color: #22c55e;
+        }
+        
+        .tooltip-badge.unread {
+          background: rgba(148, 163, 184, 0.2);
+          color: #94a3b8;
+        }
+        
+        .tooltip-genres {
+          display: flex;
+          gap: 4px;
+          flex-wrap: wrap;
+          margin-top: 4px;
+        }
+        
+        .tooltip-genre {
+          font-size: 0.65rem;
+          padding: 2px 6px;
+          background: rgba(139, 92, 246, 0.2);
+          border-radius: var(--radius-sm);
+          color: var(--color-text-muted);
         }
         
         @media (max-width: 768px) {

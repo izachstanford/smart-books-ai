@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import { Search, Sparkles, BarChart3, Compass, Cpu } from 'lucide-react';
+import { Sparkles, BarChart3, Compass, Cpu } from 'lucide-react';
 
 // Components
-import SemanticSearch from './components/SemanticSearch';
 import GalaxyView from './components/GalaxyView';
 import Analytics from './components/Analytics';
 import TasteFinder from './components/TasteFinder';
@@ -83,7 +82,7 @@ export interface AppData {
   galaxy: GalaxyPoint[];
 }
 
-type TabId = 'search' | 'galaxy' | 'analytics' | 'discover' | 'architecture';
+type TabId = 'galaxy' | 'analytics' | 'discover' | 'architecture';
 
 interface Tab {
   id: TabId;
@@ -94,7 +93,6 @@ interface Tab {
 const tabs: Tab[] = [
   { id: 'galaxy', label: 'Galaxy', icon: <Sparkles size={18} /> },
   { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={18} /> },
-  { id: 'search', label: 'Search', icon: <Search size={18} /> },
   { id: 'discover', label: 'Discover', icon: <Compass size={18} /> },
   { id: 'architecture', label: 'Architecture', icon: <Cpu size={18} /> },
 ];
@@ -161,12 +159,10 @@ function App() {
     }
 
     switch (activeTab) {
-      case 'search':
-        return <SemanticSearch books={data.books} />;
       case 'galaxy':
         return <GalaxyView points={data.galaxy} />;
       case 'analytics':
-        return <Analytics data={data.analytics} />;
+        return <Analytics data={data.analytics} galaxyData={data.galaxy} />;
       case 'discover':
         return <TasteFinder books={data.books} />;
       case 'architecture':
