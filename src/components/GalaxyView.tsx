@@ -106,19 +106,19 @@ interface BookPointProps {
 // Color mapping based on read status and rating
 // Theme: Discovery through light - rated books glow yellow, unread are gray
 const getRatingColor = (rating: number, isRead: boolean): THREE.Color => {
-  // Unread books: Slate gray (undiscovered but visible)
+  // Unread books: Dark slate (distant, undiscovered stars)
   if (!isRead) {
-    return new THREE.Color('#94a3b8'); // Lighter slate gray - visible against dark background
+    return new THREE.Color('#4A5568'); // Dark slate - clearly distinct
   }
   
-  // Read books: Yellow spectrum for high ratings, light blue for low
+  // Read books: Warm spectrum (discovered stars - yellow to pink/purple)
   switch (rating) {
-    case 5: return new THREE.Color('#fbbf24'); // Bright yellow/gold - stellar
-    case 4: return new THREE.Color('#d4a017'); // Amber - warm glow
-    case 3: return new THREE.Color('#a89132'); // Muted gold/olive
-    case 2: return new THREE.Color('#7dd3fc'); // Light blue - cool
-    case 1: return new THREE.Color('#93c5fd'); // Softer light blue
-    default: return new THREE.Color('#9ca3af'); // Unrated read: medium gray
+    case 5: return new THREE.Color('#FFD700'); // Bright gold - brilliant star
+    case 4: return new THREE.Color('#FFA500'); // Orange - vibrant star
+    case 3: return new THREE.Color('#FF8C69'); // Coral/salmon - warm mid-tone
+    case 2: return new THREE.Color('#FF69B4'); // Hot pink - distinct warm
+    case 1: return new THREE.Color('#DA70D6'); // Orchid/purple - warm but lower energy
+    default: return new THREE.Color('#9333ea'); // Purple for unrated read books
   }
 };
 
@@ -705,73 +705,31 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
         
         <div className="galaxy-legend">
           <div className="legend-item">
-            <span className="legend-dot" style={{ background: '#fbbf24' }}></span>
-            <span>5★ Favorites</span>
+            <span className="legend-dot" style={{ background: '#FFD700' }}></span>
+            <span>5★ Brilliant</span>
           </div>
           <div className="legend-item">
-            <span className="legend-dot" style={{ background: '#d4a017' }}></span>
-            <span>4★ Great</span>
+            <span className="legend-dot" style={{ background: '#FFA500' }}></span>
+            <span>4★ Vibrant</span>
           </div>
           <div className="legend-item">
-            <span className="legend-dot" style={{ background: '#a89132' }}></span>
-            <span>3★ Good</span>
+            <span className="legend-dot" style={{ background: '#FF8C69' }}></span>
+            <span>3★ Warm</span>
           </div>
           <div className="legend-item">
-            <span className="legend-dot" style={{ background: '#7dd3fc' }}></span>
-            <span>2★ / 1★</span>
+            <span className="legend-dot" style={{ background: '#FF69B4' }}></span>
+            <span>2★ Cool</span>
           </div>
           <div className="legend-item">
-            <span className="legend-dot" style={{ background: '#94a3b8' }}></span>
+            <span className="legend-dot" style={{ background: '#DA70D6' }}></span>
+            <span>1★ Dim</span>
+          </div>
+          <div className="legend-item">
+            <span className="legend-dot" style={{ background: '#4A5568' }}></span>
             <span>Unread</span>
           </div>
         </div>
       </div>
-
-      {/* Selected Book Panel */}
-      {selectedPoint && (
-        <div className="selected-book-panel animate-slideUp">
-          <button className="panel-close" onClick={() => setSelectedPoint(null)}>×</button>
-          
-          <div className="panel-content">
-            {selectedPoint.cover_url ? (
-              <img src={selectedPoint.cover_url} alt={selectedPoint.title} className="panel-cover" />
-            ) : (
-              <div className="panel-cover-placeholder">
-                <BookOpen size={32} />
-              </div>
-            )}
-            
-            <div className="panel-info">
-              <h3>{selectedPoint.title}</h3>
-              <p className="panel-author">{selectedPoint.author}</p>
-              
-              <div className="panel-meta">
-                {selectedPoint.my_rating > 0 && (
-                  <span className="panel-rating">
-                    {'★'.repeat(selectedPoint.my_rating)}
-                  </span>
-                )}
-                <span className={`badge ${selectedPoint.shelf}`}>
-                  {selectedPoint.shelf === 'read' ? '✅ Read' : '📚 To-Read'}
-                </span>
-              </div>
-              
-              {selectedPoint.genres.length > 0 && (
-                <div className="panel-genres">
-                  {selectedPoint.genres.map(g => (
-                    <span key={g} className="genre-tag">{g}</span>
-                  ))}
-                </div>
-              )}
-              
-              <p className="panel-coords">
-                <Info size={14} />
-                Position: ({selectedPoint.x.toFixed(2)}, {selectedPoint.y.toFixed(2)}, {selectedPoint.z.toFixed(2)})
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="galaxy-tip">
         <Info size={14} />
@@ -863,7 +821,6 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
       {showTable && (
         <BookTable 
           books={filteredPoints} 
-          onSelectBook={(book) => setSelectedPoint(book)}
         />
       )}
 
@@ -1363,104 +1320,6 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
           border-radius: 50%;
         }
         
-        .selected-book-panel {
-          position: absolute;
-          top: 80px;
-          right: var(--space-lg);
-          width: 320px;
-          max-height: calc(100% - 100px);
-          overflow-y: auto;
-          background: rgba(10, 10, 26, 0.95);
-          backdrop-filter: blur(20px);
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-lg);
-          padding: var(--space-lg);
-          z-index: 20;
-        }
-        
-        .panel-close {
-          position: absolute;
-          top: var(--space-sm);
-          right: var(--space-sm);
-          background: none;
-          border: none;
-          color: var(--color-text-muted);
-          font-size: 1.5rem;
-          cursor: pointer;
-          padding: var(--space-xs);
-        }
-        
-        .panel-content {
-          display: flex;
-          gap: var(--space-md);
-        }
-        
-        .panel-cover {
-          width: 80px;
-          height: 120px;
-          object-fit: cover;
-          border-radius: var(--radius-sm);
-        }
-        
-        .panel-cover-placeholder {
-          width: 80px;
-          height: 120px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: var(--color-nebula);
-          border-radius: var(--radius-sm);
-          color: var(--color-text-muted);
-        }
-        
-        .panel-info {
-          flex: 1;
-          min-width: 0;
-        }
-        
-        .panel-info h3 {
-          font-size: 0.95rem;
-          margin-bottom: var(--space-xs);
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-        
-        .panel-author {
-          font-size: 0.8rem;
-          color: var(--color-text-secondary);
-          margin-bottom: var(--space-sm);
-        }
-        
-        .panel-meta {
-          display: flex;
-          align-items: center;
-          gap: var(--space-sm);
-          margin-bottom: var(--space-sm);
-        }
-        
-        .panel-rating {
-          color: var(--color-star-gold);
-          font-size: 0.9rem;
-        }
-        
-        .panel-genres {
-          display: flex;
-          flex-wrap: wrap;
-          gap: var(--space-xs);
-          margin-bottom: var(--space-sm);
-        }
-        
-        .panel-coords {
-          display: flex;
-          align-items: center;
-          gap: var(--space-xs);
-          font-size: 0.7rem;
-          color: var(--color-text-muted);
-          font-family: var(--font-mono);
-        }
-        
         .galaxy-tip {
           display: flex;
           align-items: center;
@@ -1590,10 +1449,19 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
             gap: var(--space-md);
           }
           
-          .selected-book-panel {
-            width: calc(100% - 2 * var(--space-md));
-            right: var(--space-md);
-            left: var(--space-md);
+          .galaxy-legend {
+            /* Adjust legend position on mobile */
+            font-size: 0.7rem;
+            padding: var(--space-sm);
+          }
+          
+          .filter-bar {
+            flex-wrap: wrap;
+            gap: var(--space-sm);
+          }
+          
+          .filter-group {
+            min-width: 100%;
           }
         }
       `}</style>

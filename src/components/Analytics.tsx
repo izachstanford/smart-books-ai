@@ -108,7 +108,7 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
     const yearReadDist: Record<string, number> = {};
     readBooks.forEach(b => {
       if (b.date_read) {
-        const year = b.date_read.split('/')[0];
+        const year = b.date_read.split('-')[0]; // YYYY-MM-DD format
         yearReadDist[year] = (yearReadDist[year] || 0) + 1;
       }
     });
@@ -135,12 +135,32 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
       ? benchmarkWithPopularity.reduce((sum, b) => sum + (b.num_ratings || 0), 0) / benchmarkWithPopularity.length
       : 0;
     
-    // Fiction vs Nonfiction analysis
-    const fictionBooks = readBooks.filter(b => (b as any).fiction_type === 'Fiction');
-    const nonfictionBooks = readBooks.filter(b => (b as any).fiction_type === 'Nonfiction');
-    const unknownTypeBooks = readBooks.filter(b => 
-      !(b as any).fiction_type || (b as any).fiction_type === 'Unknown'
-    );
+    // Fiction vs Nonfiction analysis - parse from genres
+    const parseGenres = (genresData: string | string[]): string[] => {
+      try {
+        if (Array.isArray(genresData)) {
+          return genresData;
+        }
+        return JSON.parse(genresData || '[]');
+      } catch {
+        return [];
+      }
+    };
+    
+    const fictionBooks = readBooks.filter(b => {
+      const genres = parseGenres(b.genres as any).map(g => g.toLowerCase());
+      return genres.some(g => g.includes('fiction') && !g.includes('nonfiction'));
+    });
+    
+    const nonfictionBooks = readBooks.filter(b => {
+      const genres = parseGenres(b.genres as any).map(g => g.toLowerCase());
+      return genres.some(g => g.includes('nonfiction') || g.includes('non-fiction'));
+    });
+    
+    const unknownTypeBooks = readBooks.filter(b => {
+      const genres = parseGenres(b.genres as any);
+      return genres.length === 0;
+    });
     
     // Nonfiction subgenres
     const nonfictionGenres: Record<string, number> = {};

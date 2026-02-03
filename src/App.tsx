@@ -44,6 +44,7 @@ export interface GalaxyPoint {
   is_read: boolean;
   date_read?: string | null;
   cover_url: string | null;
+  description?: string;
   genres: string[];
   genre_primary?: string;
   pages: number | null;
