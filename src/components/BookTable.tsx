@@ -143,15 +143,6 @@ const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
             {paginatedBooks.map((book) => (
               <tr 
                 key={book.id} 
-                onClick={(e) => {
-                  // Check if click is on the description info icon
-                  if ((e.target as HTMLElement).closest('.desc-icon')) {
-                    e.stopPropagation();
-                    setSelectedBookForDesc(book);
-                  } else {
-                    onSelectBook?.(book);
-                  }
-                }}
                 className="book-row"
               >
                 <td className="cover-cell">
@@ -168,7 +159,10 @@ const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
                   {book.description && (
                     <button
                       className="desc-icon"
-                      onClick={() => setSelectedBookForDesc(book)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedBookForDesc(book);
+                      }}
                       title="View description"
                     >
                       <BookOpen size={14} />

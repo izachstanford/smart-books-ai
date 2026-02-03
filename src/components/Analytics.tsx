@@ -186,7 +186,12 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
       return ['fiction', 'fantasy', 'romance', 'mystery', 'thriller', 'horror', 
               'young adult', 'science fiction', 'classics'].some(g => genre.includes(g));
     }).length;
-    const benchmarkNonfiction = unreadBooks.length - benchmarkFiction;
+    const benchmarkNonfiction = unreadBooks.filter(b => {
+      const genre = b.genre_primary?.toLowerCase() || '';
+      return ['nonfiction', 'business', 'biography', 'history', 'science', 'philosophy',
+              'psychology', 'self-help', 'health', 'technology'].some(g => genre.includes(g));
+    }).length;
+    const benchmarkUnknown = unreadBooks.length - benchmarkFiction - benchmarkNonfiction;
 
     return {
       readBooks,
@@ -211,6 +216,7 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
       fictionGenres,
       benchmarkFiction,
       benchmarkNonfiction,
+      benchmarkUnknown,
     };
   }, [galaxyData, reading_timeline]);
 
@@ -693,15 +699,16 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
                   >
                     <span>Fiction {((computedStats.benchmarkFiction / computedStats.unreadBooks.length) * 100).toFixed(0)}%</span>
                   </div>
+                  {computedStats.benchmarkUnknown > 0 && (
+                    <div 
+                      className="fiction-segment unknown-benchmark"
+                      style={{ width: `${(computedStats.benchmarkUnknown / computedStats.unreadBooks.length) * 100}%` }}
+                    >
+                      <span>Unknown {((computedStats.benchmarkUnknown / computedStats.unreadBooks.length) * 100).toFixed(0)}%</span>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-            <div className="fiction-insight">
-              <strong>
-                {computedStats.nonfictionBooks.length > computedStats.fictionBooks.length 
-                  ? `You read ${((computedStats.nonfictionBooks.length / computedStats.readBooks.length) * 100).toFixed(0)}% nonfiction - heavily focused on learning & growth!`
-                  : `You're a balanced reader with a slight fiction preference.`}
-              </strong>
             </div>
           </div>
         </div>
@@ -1311,6 +1318,11 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
         .fiction-segment.unknown-you {
           background: rgba(100, 116, 139, 0.5);
           color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .fiction-segment.unknown-benchmark {
+          background: rgba(71, 85, 105, 0.4);
+          color: rgba(255, 255, 255, 0.6);
         }
         
         .fiction-insight {
