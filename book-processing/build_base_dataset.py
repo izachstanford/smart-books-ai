@@ -50,6 +50,11 @@ def clean_isbn(val) -> Optional[str]:
     cleaned = re.sub(r'[^0-9Xx]', '', cleaned).upper()
     if len(cleaned) < 10:
         return None
+    
+    # Fix common Excel corruption: 14-digit ISBN ending in 0 → truncate to 13
+    if len(cleaned) == 14 and cleaned.endswith('0'):
+        cleaned = cleaned[:13]
+    
     return cleaned
 
 
@@ -404,17 +409,23 @@ def main():
     
     backfill_count = 0
     
+    match_by_isbn = 0
+    match_by_title_author = 0
+    
     for idx, row in gr_records.iterrows():
         # Try ISBN match first
         kaggle_match = None
-        if row['isbn13'] and row['isbn13'] in kaggle_by_isbn:
-            kaggle_match = kaggle_by_isbn[row['isbn13']]
+        isbn_to_check = clean_isbn(row['isbn13']) if pd.notna(row['isbn13']) else None
+        if isbn_to_check and isbn_to_check in kaggle_by_isbn:
+            kaggle_match = kaggle_by_isbn[isbn_to_check]
+            match_by_isbn += 1
         # Try title+author fallback
-        elif (row['title'], row['author']) in goodreads_titles_authors:
+        else:
             title_norm = normalize_text(row['title'])
             author_norm = normalize_text(normalize_author(row['author']))
             if (title_norm, author_norm) in kaggle_by_title_author:
                 kaggle_match = kaggle_by_title_author[(title_norm, author_norm)]
+                match_by_title_author += 1
         
         if kaggle_match:
             gr_records.at[idx, 'description_raw'] = kaggle_match.get('description', '')
@@ -429,6 +440,8 @@ def main():
             backfill_count += 1
     
     print(f"   ✓ Backfilled {backfill_count}/{len(gr_records)} Goodreads books from Kaggle")
+    print(f"      - By ISBN: {match_by_isbn}")
+    print(f"      - By Title+Author: {match_by_title_author}")
     
     # ===== COMBINE & FINALIZE =====
     print("\n[5/6] Combining and finalizing dataset...")
