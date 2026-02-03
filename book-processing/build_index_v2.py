@@ -89,15 +89,21 @@ def run_pipeline():
         }
         metadatas.append(metadata)
     
-    # Batch insert (ChromaDB handles batching internally)
-    collection.add(
-        ids=ids,
-        embeddings=embeddings,
-        documents=documents,
-        metadatas=metadatas
-    )
+    # Batch insert (ChromaDB has max batch size ~5400)
+    batch_size = 5000
+    total_books = len(ids)
     
-    print(f"   ✓ Added {len(ids)} documents to index")
+    for i in range(0, total_books, batch_size):
+        end_idx = min(i + batch_size, total_books)
+        collection.add(
+            ids=ids[i:end_idx],
+            embeddings=embeddings[i:end_idx],
+            documents=documents[i:end_idx],
+            metadatas=metadatas[i:end_idx]
+        )
+        print(f"   ✓ Added batch {i//batch_size + 1}: {end_idx - i} documents ({end_idx}/{total_books})")
+    
+    print(f"   ✓ Added all {total_books} documents to index")
     
     # Verify
     print(f"\n[4/4] Verifying index...")

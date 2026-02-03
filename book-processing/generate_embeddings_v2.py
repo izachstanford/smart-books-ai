@@ -64,10 +64,41 @@ def run_pipeline():
     embedding_dim = model.get_sentence_embedding_dimension()
     print(f"   ✓ Model loaded (embedding dimension: {embedding_dim})")
     
-    # Get embedding texts
+    # Get embedding texts - add fallback for books without descriptions
     print(f"\n[3/4] Preparing texts for embedding...")
-    texts = df_with_desc[embedding_col].tolist()
+    
+    def create_embedding_text(row):
+        """Get embedding text, using title+author+genres as fallback."""
+        # Try description first
+        desc = row.get(embedding_col, '')
+        if pd.notna(desc) and str(desc).strip() != '' and len(str(desc)) > 50:
+            return str(desc)
+        
+        # Fallback: title + author + genres
+        parts = []
+        if pd.notna(row.get('title')):
+            parts.append(str(row['title']))
+        if pd.notna(row.get('author')):
+            parts.append(f"by {str(row['author'])}")
+        
+        # Add genres if available
+        genres_str = row.get('genres_list', '[]')
+        try:
+            genres = json.loads(genres_str) if isinstance(genres_str, str) else genres_str
+            if genres and isinstance(genres, list):
+                parts.append(f"Genres: {', '.join(genres[:3])}")
+        except:
+            pass
+        
+        return '. '.join(parts) if parts else 'Unknown book'
+    
+    # Create embedding texts for ALL books (not just those with descriptions)
+    df['embedding_text_final'] = df.apply(create_embedding_text, axis=1)
+    texts = df['embedding_text_final'].tolist()
+    
     print(f"   ✓ Prepared {len(texts)} texts for embedding")
+    print(f"     - With descriptions: {len(df_with_desc)}")
+    print(f"     - Using fallback: {len(df) - len(df_with_desc)}")
     
     # Generate embeddings
     print(f"\n[4/4] Generating embeddings...")
@@ -86,8 +117,8 @@ def run_pipeline():
     # Prepare output data
     output_data = []
     
-    # Books with embeddings
-    for idx, (_, row) in enumerate(df_with_desc.iterrows()):
+    # ALL books now have embeddings
+    for idx, (_, row) in enumerate(df.iterrows()):
         # Parse genres
         genres_str = row.get('genres_list', '[]')
         try:
@@ -113,38 +144,7 @@ def run_pipeline():
             'cover_url': str(row['cover_image_url']) if pd.notna(row['cover_image_url']) else None,
             'popularity_score': int(row['popularity_score']) if pd.notna(row['popularity_score']) else 0,
             'embedding': embeddings[idx].tolist(),
-            'embedding_text': str(row[embedding_col]) if pd.notna(row[embedding_col]) else ''
-        }
-        output_data.append(book_data)
-    
-    # Books WITHOUT descriptions (for completeness)
-    df_no_desc = df[~df.index.isin(df_with_desc.index)]
-    for _, row in df_no_desc.iterrows():
-        genres_str = row.get('genres_list', '[]')
-        try:
-            genres = json.loads(genres_str) if isinstance(genres_str, str) else genres_str
-        except:
-            genres = []
-        
-        book_data = {
-            'id': str(row['book_key']),
-            'title': str(row['title']) if pd.notna(row['title']) else '',
-            'author': str(row['author']) if pd.notna(row['author']) else '',
-            'isbn': str(row.get('isbn', '')) if pd.notna(row.get('isbn')) else '',
-            'my_rating': int(row['my_rating']) if pd.notna(row['my_rating']) else 0,
-            'avg_rating': float(row['avg_rating']) if pd.notna(row['avg_rating']) else 0,
-            'shelf': 'read' if row['is_read'] else 'unread',
-            'is_read': bool(row['is_read']),
-            'date_read': str(row['date_read']) if pd.notna(row['date_read']) else None,
-            'pages': int(row.get('pages', 0)) if pd.notna(row.get('pages')) else None,
-            'year_published': safe_year(row['publish_year']),
-            'description': '',
-            'genres': json.dumps(genres) if genres else '[]',
-            'genre_primary': str(row.get('genre_primary', 'Unknown')) if pd.notna(row.get('genre_primary')) else 'Unknown',
-            'cover_url': str(row['cover_image_url']) if pd.notna(row['cover_image_url']) else None,
-            'popularity_score': int(row['popularity_score']) if pd.notna(row['popularity_score']) else 0,
-            'embedding': None,  # No embedding for books without descriptions
-            'embedding_text': None
+            'embedding_text': str(row['embedding_text_final']) if pd.notna(row.get('embedding_text_final')) else ''
         }
         output_data.append(book_data)
     

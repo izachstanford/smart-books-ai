@@ -18,7 +18,7 @@ type SortDirection = 'asc' | 'desc';
  */
 const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
   // Sort states - default to rating descending
-  const [sortField, setSortField] = useState<SortField>('my_rating');
+  const [sortField, setSortField] = useState<SortField>('date_read');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   
   // Pagination
