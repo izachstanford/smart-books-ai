@@ -24,6 +24,9 @@ const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
+  
+  // Description modal
+  const [selectedBookForDesc, setSelectedBookForDesc] = useState<GalaxyPoint | null>(null);
 
   // Apply sorting
   const sortedBooks = useMemo(() => {
@@ -140,7 +143,6 @@ const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
             {paginatedBooks.map((book) => (
               <tr 
                 key={book.id} 
-                onClick={() => onSelectBook?.(book)}
                 className="book-row"
               >
                 <td className="cover-cell">
@@ -154,6 +156,18 @@ const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
                 </td>
                 <td className="title-cell">
                   <span className="book-title">{book.title}</span>
+                  {book.description && (
+                    <button
+                      className="desc-icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedBookForDesc(book);
+                      }}
+                      title="View description"
+                    >
+                      <BookOpen size={14} />
+                    </button>
+                  )}
                 </td>
                 <td className="author-cell">{book.author}</td>
                 <td className="rating-cell">{renderStars(book.my_rating)}</td>
@@ -222,6 +236,33 @@ const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
           >
             Last
           </button>
+        </div>
+      )}
+
+      {/* Description Modal */}
+      {selectedBookForDesc && (
+        <div className="desc-modal-overlay" onClick={() => setSelectedBookForDesc(null)}>
+          <div className="desc-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setSelectedBookForDesc(null)}>×</button>
+            
+            <div className="modal-header">
+              {selectedBookForDesc.cover_url && (
+                <img 
+                  src={selectedBookForDesc.cover_url} 
+                  alt={selectedBookForDesc.title}
+                  className="modal-cover"
+                />
+              )}
+              <div className="modal-title-section">
+                <h3>{selectedBookForDesc.title}</h3>
+                <p className="modal-author">{selectedBookForDesc.author}</p>
+              </div>
+            </div>
+            
+            <div className="modal-description">
+              {selectedBookForDesc.description || 'No description available.'}
+            </div>
+          </div>
         </div>
       )}
 
@@ -478,6 +519,107 @@ const BookTable: React.FC<Props> = ({ books, onSelectBook }) => {
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           overflow: hidden;
+        }
+        
+        .desc-icon {
+          background: none;
+          border: none;
+          color: var(--color-purple);
+          opacity: 0.6;
+          cursor: pointer;
+          padding: 4px;
+          margin-left: 8px;
+          transition: all 0.2s ease;
+          display: inline-flex;
+          align-items: center;
+          vertical-align: middle;
+        }
+        
+        .desc-icon:hover {
+          opacity: 1;
+          transform: scale(1.15);
+        }
+        
+        .desc-modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.8);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10000;
+          padding: var(--space-lg);
+        }
+        
+        .desc-modal {
+          background: var(--gradient-card);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-lg);
+          max-width: 600px;
+          max-height: 80vh;
+          overflow-y: auto;
+          padding: var(--space-xl);
+          position: relative;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+        
+        .modal-close {
+          position: absolute;
+          top: var(--space-md);
+          right: var(--space-md);
+          background: rgba(255, 255, 255, 0.1);
+          border: 1px solid var(--color-border);
+          border-radius: 50%;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          font-size: 1.5rem;
+          color: var(--color-text-secondary);
+          transition: all 0.2s ease;
+        }
+        
+        .modal-close:hover {
+          background: rgba(255, 255, 255, 0.2);
+          color: var(--color-text-primary);
+        }
+        
+        .modal-header {
+          display: flex;
+          gap: var(--space-md);
+          margin-bottom: var(--space-lg);
+          padding-bottom: var(--space-md);
+          border-bottom: 1px solid var(--color-border);
+        }
+        
+        .modal-cover {
+          width: 80px;
+          height: auto;
+          border-radius: var(--radius-sm);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .modal-title-section h3 {
+          margin: 0 0 var(--space-xs) 0;
+          color: var(--color-text-primary);
+          font-size: 1.25rem;
+        }
+        
+        .modal-author {
+          margin: 0;
+          color: var(--color-text-secondary);
+          font-size: 0.9rem;
+        }
+        
+        .modal-description {
+          color: var(--color-text-secondary);
+          line-height: 1.7;
+          font-size: 0.95rem;
         }
         
         .author-cell {

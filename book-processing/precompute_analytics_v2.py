@@ -156,6 +156,7 @@ def run_pipeline():
                 'is_read': book.get('is_read', False),
                 'date_read': book.get('date_read'),
                 'cover_url': book.get('cover_url'),
+                'description': book.get('description_clean', ''),
                 'genres': parse_genres(book.get('genres', '[]'))[:3],
                 'genre_primary': book.get('genre_primary', 'Unknown'),
                 'pages': book.get('pages'),

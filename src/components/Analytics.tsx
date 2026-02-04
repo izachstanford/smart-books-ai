@@ -108,7 +108,7 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
     const yearReadDist: Record<string, number> = {};
     readBooks.forEach(b => {
       if (b.date_read) {
-        const year = b.date_read.split('/')[0];
+        const year = b.date_read.split('-')[0]; // YYYY-MM-DD format
         yearReadDist[year] = (yearReadDist[year] || 0) + 1;
       }
     });
@@ -135,12 +135,35 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
       ? benchmarkWithPopularity.reduce((sum, b) => sum + (b.num_ratings || 0), 0) / benchmarkWithPopularity.length
       : 0;
     
-    // Fiction vs Nonfiction analysis
-    const fictionBooks = readBooks.filter(b => (b as any).fiction_type === 'Fiction');
-    const nonfictionBooks = readBooks.filter(b => (b as any).fiction_type === 'Nonfiction');
-    const unknownTypeBooks = readBooks.filter(b => 
-      !(b as any).fiction_type || (b as any).fiction_type === 'Unknown'
-    );
+    // Fiction vs Nonfiction analysis - parse from genres
+    const parseGenres = (genresData: string | string[]): string[] => {
+      try {
+        if (Array.isArray(genresData)) {
+          return genresData;
+        }
+        return JSON.parse(genresData || '[]');
+      } catch {
+        return [];
+      }
+    };
+    
+    const fictionBooks = readBooks.filter(b => {
+      const genres = parseGenres(b.genres as any).map(g => g.toLowerCase());
+      return genres.some(g => g.includes('fiction') && !g.includes('nonfiction'));
+    });
+    
+    const nonfictionBooks = readBooks.filter(b => {
+      const genres = parseGenres(b.genres as any).map(g => g.toLowerCase());
+      return genres.some(g => g.includes('nonfiction') || g.includes('non-fiction'));
+    });
+    
+    // Unknown = books that are neither fiction nor nonfiction
+    const unknownTypeBooks = readBooks.filter(b => {
+      const genres = parseGenres(b.genres as any).map(g => g.toLowerCase());
+      const isFiction = genres.some(g => g.includes('fiction') && !g.includes('nonfiction'));
+      const isNonfiction = genres.some(g => g.includes('nonfiction') || g.includes('non-fiction'));
+      return !isFiction && !isNonfiction;
+    });
     
     // Nonfiction subgenres
     const nonfictionGenres: Record<string, number> = {};
@@ -166,7 +189,12 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
       return ['fiction', 'fantasy', 'romance', 'mystery', 'thriller', 'horror', 
               'young adult', 'science fiction', 'classics'].some(g => genre.includes(g));
     }).length;
-    const benchmarkNonfiction = unreadBooks.length - benchmarkFiction;
+    const benchmarkNonfiction = unreadBooks.filter(b => {
+      const genre = b.genre_primary?.toLowerCase() || '';
+      return ['nonfiction', 'business', 'biography', 'history', 'science', 'philosophy',
+              'psychology', 'self improvement', 'self-help', 'health', 'technology'].some(g => genre.includes(g));
+    }).length;
+    const benchmarkUnknown = unreadBooks.length - benchmarkFiction - benchmarkNonfiction;
 
     return {
       readBooks,
@@ -191,6 +219,7 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
       fictionGenres,
       benchmarkFiction,
       benchmarkNonfiction,
+      benchmarkUnknown,
     };
   }, [galaxyData, reading_timeline]);
 
@@ -262,7 +291,9 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
     return genreComparisonData
       .map(g => ({
         ...g,
-        affinityScore: g.myTaste > 0 ? ((g.myTaste - g.benchmark) / g.benchmark * 100) : -100,
+        affinityScore: g.myTaste > 0 
+          ? (g.benchmark > 0 ? ((g.myTaste - g.benchmark) / g.benchmark * 100) : 999) // Cap at 999% if benchmark is 0
+          : -100,
       }))
       .sort((a, b) => b.affinityScore - a.affinityScore);
   }, [genreComparisonData]);
@@ -673,15 +704,16 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
                   >
                     <span>Fiction {((computedStats.benchmarkFiction / computedStats.unreadBooks.length) * 100).toFixed(0)}%</span>
                   </div>
+                  {computedStats.benchmarkUnknown > 0 && (
+                    <div 
+                      className="fiction-segment unknown-benchmark"
+                      style={{ width: `${(computedStats.benchmarkUnknown / computedStats.unreadBooks.length) * 100}%` }}
+                    >
+                      <span>Unknown {((computedStats.benchmarkUnknown / computedStats.unreadBooks.length) * 100).toFixed(0)}%</span>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-            <div className="fiction-insight">
-              <strong>
-                {computedStats.nonfictionBooks.length > computedStats.fictionBooks.length 
-                  ? `You read ${((computedStats.nonfictionBooks.length / computedStats.readBooks.length) * 100).toFixed(0)}% nonfiction - heavily focused on learning & growth!`
-                  : `You're a balanced reader with a slight fiction preference.`}
-              </strong>
             </div>
           </div>
         </div>
@@ -731,7 +763,7 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
                       <div className="affinity-center-line" />
                     </div>
                     <span className={`affinity-score ${genre.affinityScore >= 0 ? 'positive' : 'negative'}`}>
-                      {genre.affinityScore >= 0 ? '+' : ''}{genre.affinityScore.toFixed(0)}%
+                      {genre.affinityScore >= 999 ? '+999%' : `${genre.affinityScore >= 0 ? '+' : ''}${genre.affinityScore.toFixed(0)}%`}
                     </span>
                   </div>
                 );
@@ -752,7 +784,9 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
               <h4>Top Affinity Genre</h4>
               <p>{genreAffinityData[0]?.fullGenre || 'N/A'}</p>
               <span className="insight-detail">
-                You read {genreAffinityData[0]?.affinityScore?.toFixed(0) || 0}% more than average
+                {genreAffinityData[0]?.affinityScore >= 999 
+                  ? 'Unique to your reading - not in benchmark'
+                  : `You read ${genreAffinityData[0]?.affinityScore?.toFixed(0) || 0}% more than average`}
               </span>
             </div>
           </div>
@@ -1291,6 +1325,11 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
         .fiction-segment.unknown-you {
           background: rgba(100, 116, 139, 0.5);
           color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .fiction-segment.unknown-benchmark {
+          background: rgba(71, 85, 105, 0.4);
+          color: rgba(255, 255, 255, 0.6);
         }
         
         .fiction-insight {
