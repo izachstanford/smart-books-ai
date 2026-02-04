@@ -157,9 +157,12 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
       return genres.some(g => g.includes('nonfiction') || g.includes('non-fiction'));
     });
     
+    // Unknown = books that are neither fiction nor nonfiction
     const unknownTypeBooks = readBooks.filter(b => {
-      const genres = parseGenres(b.genres as any);
-      return genres.length === 0;
+      const genres = parseGenres(b.genres as any).map(g => g.toLowerCase());
+      const isFiction = genres.some(g => g.includes('fiction') && !g.includes('nonfiction'));
+      const isNonfiction = genres.some(g => g.includes('nonfiction') || g.includes('non-fiction'));
+      return !isFiction && !isNonfiction;
     });
     
     // Nonfiction subgenres
@@ -189,7 +192,7 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
     const benchmarkNonfiction = unreadBooks.filter(b => {
       const genre = b.genre_primary?.toLowerCase() || '';
       return ['nonfiction', 'business', 'biography', 'history', 'science', 'philosophy',
-              'psychology', 'self-help', 'health', 'technology'].some(g => genre.includes(g));
+              'psychology', 'self improvement', 'self-help', 'health', 'technology'].some(g => genre.includes(g));
     }).length;
     const benchmarkUnknown = unreadBooks.length - benchmarkFiction - benchmarkNonfiction;
 
@@ -288,7 +291,9 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
     return genreComparisonData
       .map(g => ({
         ...g,
-        affinityScore: g.myTaste > 0 ? ((g.myTaste - g.benchmark) / g.benchmark * 100) : -100,
+        affinityScore: g.myTaste > 0 
+          ? (g.benchmark > 0 ? ((g.myTaste - g.benchmark) / g.benchmark * 100) : 999) // Cap at 999% if benchmark is 0
+          : -100,
       }))
       .sort((a, b) => b.affinityScore - a.affinityScore);
   }, [genreComparisonData]);
@@ -758,7 +763,7 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
                       <div className="affinity-center-line" />
                     </div>
                     <span className={`affinity-score ${genre.affinityScore >= 0 ? 'positive' : 'negative'}`}>
-                      {genre.affinityScore >= 0 ? '+' : ''}{genre.affinityScore.toFixed(0)}%
+                      {genre.affinityScore >= 999 ? '+999%' : `${genre.affinityScore >= 0 ? '+' : ''}${genre.affinityScore.toFixed(0)}%`}
                     </span>
                   </div>
                 );
@@ -779,7 +784,9 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
               <h4>Top Affinity Genre</h4>
               <p>{genreAffinityData[0]?.fullGenre || 'N/A'}</p>
               <span className="insight-detail">
-                You read {genreAffinityData[0]?.affinityScore?.toFixed(0) || 0}% more than average
+                {genreAffinityData[0]?.affinityScore >= 999 
+                  ? 'Unique to your reading - not in benchmark'
+                  : `You read ${genreAffinityData[0]?.affinityScore?.toFixed(0) || 0}% more than average`}
               </span>
             </div>
           </div>

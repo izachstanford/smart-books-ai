@@ -5,6 +5,10 @@ Enhanced genre imputation using title keywords and Kaggle matching.
 import pandas as pd
 import json
 import re
+from pathlib import Path
+
+# Paths
+PROCESSED_DATA_FILE = Path(__file__).parent / 'book_records_v4_enriched.csv'
 
 # Comprehensive genre patterns
 GENRE_PATTERNS = {
@@ -16,7 +20,7 @@ GENRE_PATTERNS = {
         'success', 'winning', 'performance', 'productivity', 'efficiency', 'agile',
         'habit', 'atomic habit', 'power of', 'law of', 'principles', 'almanack'
     ],
-    'Self-Help': [
+    'Self Improvement': [
         'self-help', 'self help', 'improve yourself', 'better life', 'happiness',
         'confidence', 'anxiety', 'stress', 'mindset', 'meditation', 'mindfulness',
         'spiritual', 'inner peace', 'transformation', 'change your life', 'power of now',
@@ -130,7 +134,7 @@ def main():
     print("🎯 Enhanced Genre Imputation")
     print("="*70)
     
-    df = pd.read_csv('book_records_v4_enriched.csv')
+    df = pd.read_csv(PROCESSED_DATA_FILE)
     
     updated_count = 0
     
@@ -165,7 +169,7 @@ def main():
                 print(f"✓ {title[:50]:50} | {existing_genres} → {new_genres}")
     
     # Save
-    df.to_csv('book_records_v4_enriched.csv', index=False)
+    df.to_csv(PROCESSED_DATA_FILE, index=False)
     
     print(f"\n✅ Updated {updated_count} books with specific genres!")
 
