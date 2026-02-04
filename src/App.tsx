@@ -161,7 +161,7 @@ function App() {
 
     switch (activeTab) {
       case 'galaxy':
-        return <GalaxyView points={data.galaxy} />;
+        return <GalaxyView points={data.galaxy} books={data.books} />;
       case 'analytics':
         return <Analytics data={data.analytics} galaxyData={data.galaxy} />;
       case 'discover':
