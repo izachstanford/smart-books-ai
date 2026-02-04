@@ -191,7 +191,7 @@ const Architecture: React.FC<Props> = ({ analytics }) => {
             <div className="output-arrow">↓</div>
             <div className="output-result">
               <strong>Output:</strong> Combined dataset with {analytics.summary.total_books.toLocaleString()} unique books
-              <span className="output-detail">({analytics.summary.books_read} read + {analytics.summary.books_unread.toLocaleString()} unread)</span>
+              <span className="output-detail">({analytics.summary.books_read} read + {(analytics.summary.books_unread || 0).toLocaleString()} unread)</span>
             </div>
           </div>
         </div>
