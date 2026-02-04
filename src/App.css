@@ -180,9 +180,45 @@
   background: rgba(10, 10, 26, 0.5);
 }
 
-.app-footer p {
+.footer-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.footer-tech {
   font-size: 0.75rem;
   color: var(--color-text-muted);
+  margin: 0;
+}
+
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  font-size: 0.8rem;
+}
+
+.footer-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--color-aurora);
+  transition: color var(--transition-fast);
+}
+
+.footer-link:hover {
+  color: var(--color-cosmic-purple);
+}
+
+.footer-link svg {
+  flex-shrink: 0;
+}
+
+.footer-separator {
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
 }
 
 /* Responsive */
