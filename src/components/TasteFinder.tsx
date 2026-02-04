@@ -191,6 +191,7 @@ const ResultsVisualization: React.FC<{
 }> = ({ sourceLabel, sourceEmbedding, sourceBooks, results, onSelectBook }) => {
   const [autoRotate, setAutoRotate] = useState(true);
   const [hoveredMatch, setHoveredMatch] = useState<HoveredMatch | null>(null);
+  const [isMouseOverViz, setIsMouseOverViz] = useState(false);
   
   const positions = useMemo(() => {
     if (!sourceEmbedding) return { source: [0, 0, 0] as [number, number, number], matches: [] };
@@ -232,7 +233,11 @@ const ResultsVisualization: React.FC<{
         </button>
       </div>
       
-      <div className="viz-wrapper">
+      <div 
+        className="viz-wrapper"
+        onMouseEnter={() => setIsMouseOverViz(true)}
+        onMouseLeave={() => setIsMouseOverViz(false)}
+      >
         <div className="viz-container">
           <Canvas camera={{ position: [5, 4, 5], fov: 50 }}>
             <Suspense fallback={null}>
@@ -283,7 +288,7 @@ const ResultsVisualization: React.FC<{
               <OrbitControls
                 enablePan={false}
                 enableZoom={true}
-                autoRotate={autoRotate}
+                autoRotate={autoRotate && !isMouseOverViz}
                 autoRotateSpeed={0.5}
               />
             </Suspense>

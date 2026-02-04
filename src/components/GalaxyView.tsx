@@ -3,7 +3,7 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Html, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import { GalaxyPoint } from '../App';
-import { RotateCcw, Eye, EyeOff, Info, BookOpen, Table, Maximize2, X, Search, ChevronDown, Check, Pause, Play, Focus } from 'lucide-react';
+import { RotateCcw, Eye, EyeOff, Info, BookOpen, Table, Maximize2, X, Search, ChevronDown, Check, Pause, Play, Focus, Star, Clock } from 'lucide-react';
 import BookTable from './BookTable';
 
 // Searchable dropdown component
@@ -94,12 +94,14 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ label, value, optio
 
 interface Props {
   points: GalaxyPoint[];
+  books?: any[];  // Optional: for enriching with full book data
 }
 
 interface BookPointProps {
   point: GalaxyPoint;
   isSelected: boolean;
   onClick: () => void;
+  onHover: (point: GalaxyPoint | null) => void;
   showLabels: boolean;
 }
 
@@ -123,7 +125,7 @@ const getRatingColor = (rating: number, isRead: boolean): THREE.Color => {
 };
 
 // Individual book point in 3D space
-const BookPoint: React.FC<BookPointProps> = ({ point, isSelected, onClick, showLabels }) => {
+const BookPoint: React.FC<BookPointProps> = ({ point, isSelected, onClick, onHover, showLabels }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
   
@@ -141,8 +143,14 @@ const BookPoint: React.FC<BookPointProps> = ({ point, isSelected, onClick, showL
         e.stopPropagation();
         onClick();
       }}
-      onPointerOver={() => setHovered(true)}
-      onPointerOut={() => setHovered(false)}
+      onPointerOver={() => {
+        setHovered(true);
+        onHover(point);
+      }}
+      onPointerOut={() => {
+        setHovered(false);
+        onHover(null);
+      }}
     >
       <sphereGeometry args={[size, 12, 12]} />
       <meshStandardMaterial
@@ -171,42 +179,6 @@ const BookPoint: React.FC<BookPointProps> = ({ point, isSelected, onClick, showL
           </div>
         </Html>
       )}
-      
-      {/* Rich tooltip on hover - appears in 3D space */}
-      {hovered && (
-        <Html 
-          center
-          style={{ pointerEvents: 'none', transform: 'translate3d(120px, 0, 0)' }}
-          zIndexRange={[100, 0]}
-        >
-          <div className="book-tooltip-rich">
-            {point.cover_url ? (
-              <img src={point.cover_url} alt="" className="tooltip-cover" />
-            ) : (
-              <div className="tooltip-cover-placeholder">📚</div>
-            )}
-            <div className="tooltip-content">
-              <strong className="tooltip-title">{point.title}</strong>
-              <span className="tooltip-author">{point.author}</span>
-              <div className="tooltip-meta">
-                {point.my_rating > 0 && (
-                  <span className="tooltip-rating">{'★'.repeat(point.my_rating)}</span>
-                )}
-                <span className={`tooltip-badge ${point.is_read ? 'read' : 'unread'}`}>
-                  {point.is_read ? '✅ Read' : '📖 Unread'}
-                </span>
-              </div>
-              {point.genres && point.genres.length > 0 && (
-                <div className="tooltip-genres">
-                  {point.genres.slice(0, 2).map((g, i) => (
-                    <span key={i} className="tooltip-genre">{g}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </Html>
-      )}
     </mesh>
   );
 };
@@ -228,10 +200,11 @@ const GalaxyScene: React.FC<{
   points: GalaxyPoint[];
   selectedPoint: GalaxyPoint | null;
   onSelect: (point: GalaxyPoint | null) => void;
+  onHover: (point: GalaxyPoint | null) => void;
   showLabels: boolean;
   resetTrigger: number;
   autoRotate: boolean;
-}> = ({ points, selectedPoint, onSelect, showLabels, resetTrigger, autoRotate }) => {
+}> = ({ points, selectedPoint, onSelect, onHover, showLabels, resetTrigger, autoRotate }) => {
   return (
     <>
       <CameraController resetTrigger={resetTrigger} />
@@ -259,6 +232,7 @@ const GalaxyScene: React.FC<{
           point={point}
           isSelected={selectedPoint?.id === point.id}
           onClick={() => onSelect(selectedPoint?.id === point.id ? null : point)}
+          onHover={onHover}
           showLabels={showLabels}
         />
       ))}
@@ -284,13 +258,36 @@ const GalaxyScene: React.FC<{
  * GalaxyView - 3D visualization of book embeddings
  * Books positioned in 3D space based on semantic similarity
  */
-const GalaxyView: React.FC<Props> = ({ points }) => {
+const GalaxyView: React.FC<Props> = ({ points, books }) => {
   const [selectedPoint, setSelectedPoint] = useState<GalaxyPoint | null>(null);
+  const [hoveredPoint, setHoveredPoint] = useState<GalaxyPoint | null>(null);
   const [showLabels, setShowLabels] = useState(false);
   const [resetTrigger, setResetTrigger] = useState(0);
   const [showTable, setShowTable] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true); // Auto-rotate toggle
+  const [isMouseOverViz, setIsMouseOverViz] = useState(false); // Track mouse over visualization
+  
+  // Create a map of book descriptions by ID for quick lookup
+  const bookDescriptions = useMemo(() => {
+    const map = new Map<string, string>();
+    if (books) {
+      books.forEach((book: any) => {
+        if (book.description) {
+          map.set(book.id, book.description);
+        }
+      });
+    }
+    return map;
+  }, [books]);
+  
+  // Enrich points with descriptions from books
+  const enrichedPoints = useMemo(() => {
+    return points.map(point => ({
+      ...point,
+      description: bookDescriptions.get(point.id) || point.description || ''
+    }));
+  }, [points, bookDescriptions]);
   
   // Selection/zoom states
   const [selectionMode, setSelectionMode] = useState(false);
@@ -315,18 +312,18 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
   // Extract unique years published
   const availableYearsPublished = useMemo(() => {
     const years = new Set<string>();
-    points.forEach(p => {
+    enrichedPoints.forEach(p => {
       if (p.year_published) {
         years.add(p.year_published.toString());
       }
     });
     return Array.from(years).sort().reverse();
-  }, [points]);
+  }, [enrichedPoints]);
   
   // Extract unique years read from date_read
   const availableYearsRead = useMemo(() => {
     const years = new Set<string>();
-    points.forEach(p => {
+    enrichedPoints.forEach(p => {
       if (p.date_read) {
         // date_read is in format "YYYY/MM/DD" or similar
         const year = p.date_read.substring(0, 4);
@@ -336,29 +333,29 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
       }
     });
     return Array.from(years).sort().reverse();
-  }, [points]);
+  }, [enrichedPoints]);
   
   // Extract unique genres
   const availableGenres = useMemo(() => {
     const genreSet = new Set<string>();
-    points.forEach(p => {
+    enrichedPoints.forEach(p => {
       p.genres?.forEach(g => genreSet.add(g));
     });
     return Array.from(genreSet).sort();
-  }, [points]);
+  }, [enrichedPoints]);
   
   // Get top unread books by popularity
   const topUnreadByPopularity = useMemo(() => {
-    const unread = points.filter(p => !p.is_read && (p.popularity_score || 0) > 0);
+    const unread = enrichedPoints.filter(p => !p.is_read && (p.popularity_score || 0) > 0);
     return unread.sort((a, b) => (b.popularity_score || 0) - (a.popularity_score || 0));
-  }, [points]);
+  }, [enrichedPoints]);
   
   const top100Ids = useMemo(() => new Set(topUnreadByPopularity.slice(0, 100).map(p => p.id)), [topUnreadByPopularity]);
   const top1000Ids = useMemo(() => new Set(topUnreadByPopularity.slice(0, 1000).map(p => p.id)), [topUnreadByPopularity]);
   
   // Apply all filters
   const filteredPoints = useMemo(() => {
-    let filtered = [...points];
+    let filtered = [...enrichedPoints];
     
     // Read status filter
     if (readStatusFilter === 'read') {
@@ -416,7 +413,7 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
     }
     
     return filtered;
-  }, [points, readStatusFilter, ratingFilter, yearPublishedFilter, yearReadFilter, genreFilter, keywordSearch, popularityFilter, top100Ids, top1000Ids, selectionBounds]);
+  }, [enrichedPoints, readStatusFilter, ratingFilter, yearPublishedFilter, yearReadFilter, genreFilter, keywordSearch, popularityFilter, top100Ids, top1000Ids, selectionBounds]);
   
   // Rescale points when selection is active (spread them out to fill the space)
   const displayPoints = useMemo(() => {
@@ -457,12 +454,12 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
   
   // Summary stats
   const stats = useMemo(() => ({
-    total: points.length,
-    read: points.filter(p => p.is_read).length,
-    unread: points.filter(p => !p.is_read).length,
-    fiveStars: points.filter(p => p.my_rating === 5).length,
+    total: enrichedPoints.length,
+    read: enrichedPoints.filter(p => p.is_read).length,
+    unread: enrichedPoints.filter(p => !p.is_read).length,
+    fiveStars: enrichedPoints.filter(p => p.my_rating === 5).length,
     showing: filteredPoints.length,
-  }), [points, filteredPoints]);
+  }), [enrichedPoints, filteredPoints]);
   
   // Check if any filters are active (beyond defaults)
   const hasActiveFilters = readStatusFilter !== 'all' || ratingFilter !== 'all' || 
@@ -612,21 +609,69 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
       </div>
 
       <div className={`galaxy-canvas-wrapper ${isFullscreen ? 'fullscreen' : ''}`}>
-        <Canvas
-          camera={{ position: [8, 5, 8], fov: 60 }}
-          style={{ background: 'transparent' }}
+        <div 
+          className="viz-wrapper-galaxy"
+          onMouseEnter={() => setIsMouseOverViz(true)}
+          onMouseLeave={() => setIsMouseOverViz(false)}
         >
-          <Suspense fallback={null}>
-            <GalaxyScene
-              points={displayPoints}
-              selectedPoint={selectedPoint}
-              onSelect={setSelectedPoint}
-              showLabels={showLabels}
-              resetTrigger={resetTrigger}
-              autoRotate={autoRotate}
-            />
-          </Suspense>
-        </Canvas>
+          <Canvas
+            camera={{ position: [8, 5, 8], fov: 60 }}
+            style={{ background: 'transparent' }}
+            className="galaxy-canvas"
+          >
+            <Suspense fallback={null}>
+              <GalaxyScene
+                points={displayPoints}
+                selectedPoint={selectedPoint}
+                onSelect={setSelectedPoint}
+                onHover={setHoveredPoint}
+                showLabels={showLabels}
+                resetTrigger={resetTrigger}
+                autoRotate={autoRotate && !isMouseOverViz}
+              />
+            </Suspense>
+          </Canvas>
+          
+          {/* Hover panel - outside canvas but inside wrapper */}
+          <div className={`viz-hover-panel ${hoveredPoint ? 'visible' : ''}`}>
+            {hoveredPoint ? (
+              <>
+                {hoveredPoint.cover_url && (
+                  <div className="hover-cover">
+                    <img src={hoveredPoint.cover_url} alt={hoveredPoint.title} />
+                  </div>
+                )}
+                <div className="hover-title">{hoveredPoint.title}</div>
+                {hoveredPoint.author && (
+                  <div className="hover-author">by {hoveredPoint.author}</div>
+                )}
+                {hoveredPoint.my_rating > 0 && (
+                  <div className="hover-rating">
+                    {'★'.repeat(hoveredPoint.my_rating)}
+                  </div>
+                )}
+                <div 
+                  className="hover-status"
+                  style={{ color: hoveredPoint.is_read ? '#00f5d4' : '#94a3b8' }}
+                >
+                  {hoveredPoint.is_read ? '✓ Read' : '💡 Unread'}
+                </div>
+                {hoveredPoint.description && hoveredPoint.description.trim() && (
+                  <div className="hover-description">
+                    {hoveredPoint.description.length > 250 
+                      ? hoveredPoint.description.substring(0, 250).trim() + '...' 
+                      : hoveredPoint.description}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="hover-placeholder">
+                <span>👆</span>
+                <span>Hover over a star</span>
+              </div>
+            )}
+          </div>
+        </div>
         
         {/* Selection overlay for drawing selection box */}
         {selectionMode && (
@@ -822,6 +867,99 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
         <BookTable 
           books={filteredPoints} 
         />
+      )}
+
+      {/* Book Detail Modal */}
+      {selectedPoint && (
+        <div className="modal-overlay" onClick={() => setSelectedPoint(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setSelectedPoint(null)}>
+              <X size={24} />
+            </button>
+            
+            <div className="modal-body">
+              <div className="modal-cover">
+                {selectedPoint.cover_url ? (
+                  <img src={selectedPoint.cover_url} alt={selectedPoint.title} />
+                ) : (
+                  <div className="cover-placeholder large">
+                    <BookOpen size={64} />
+                  </div>
+                )}
+              </div>
+              
+              <div className="modal-info">
+                <h2>{selectedPoint.title}</h2>
+                <p className="modal-author">by {selectedPoint.author}</p>
+                
+                <div className="modal-meta">
+                  {selectedPoint.my_rating > 0 && (
+                    <div className="meta-item">
+                      <span className="meta-label">Your Rating</span>
+                      <div className="rating-stars">
+                        {[1, 2, 3, 4, 5].map(i => (
+                          <Star
+                            key={i}
+                            size={16}
+                            fill={i <= selectedPoint.my_rating ? '#ffd93d' : 'none'}
+                            color={i <= selectedPoint.my_rating ? '#ffd93d' : '#64748b'}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedPoint.avg_rating > 0 && (
+                    <div className="meta-item">
+                      <span className="meta-label">Avg Rating</span>
+                      <span>{selectedPoint.avg_rating.toFixed(2)}</span>
+                    </div>
+                  )}
+                  
+                  {selectedPoint.pages && (
+                    <div className="meta-item">
+                      <span className="meta-label">Pages</span>
+                      <span>{selectedPoint.pages}</span>
+                    </div>
+                  )}
+                  
+                  {selectedPoint.year_published && (
+                    <div className="meta-item">
+                      <span className="meta-label">Published</span>
+                      <span>{selectedPoint.year_published}</span>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="modal-status">
+                  <span className={`status-badge ${selectedPoint.is_read ? 'read' : 'unread'}`}>
+                    {selectedPoint.is_read ? '📖 Read' : '💡 Unread'}
+                  </span>
+                  {selectedPoint.date_read && (
+                    <span className="date-read">
+                      <Clock size={14} /> Read on {selectedPoint.date_read}
+                    </span>
+                  )}
+                </div>
+                
+                {selectedPoint.genres && selectedPoint.genres.length > 0 && (
+                  <div className="modal-genres">
+                    {selectedPoint.genres.slice(0, 5).map(genre => (
+                      <span key={genre} className="genre-tag">{genre}</span>
+                    ))}
+                  </div>
+                )}
+                
+                {selectedPoint.description && selectedPoint.description.trim() && (
+                  <div className="modal-description">
+                    <h4>Description</h4>
+                    <p>{selectedPoint.description}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       <style>{`
@@ -1237,6 +1375,17 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
           transition: all var(--transition-base);
         }
         
+        .viz-wrapper-galaxy {
+          display: flex;
+          gap: var(--space-md);
+          align-items: stretch;
+          height: 100%;
+        }
+        
+        .galaxy-canvas {
+          flex: 1;
+        }
+        
         .galaxy-canvas-wrapper.fullscreen {
           position: fixed;
           inset: 0;
@@ -1342,105 +1491,273 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
           white-space: nowrap;
         }
         
-        /* Rich tooltip with cover image */
-        .book-tooltip-rich {
-          background: rgba(10, 10, 26, 0.98);
-          border: 1px solid var(--color-cosmic-purple);
-          border-radius: var(--radius-md);
-          padding: 12px;
+        /* Hover Panel */
+        .viz-hover-panel {
+          width: 200px;
+          background: rgba(13, 13, 35, 0.95);
+          border-left: 1px solid var(--color-border);
+          padding: var(--space-md);
           display: flex;
-          gap: 12px;
-          min-width: 280px;
-          max-width: 350px;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+          overflow-y: auto;
         }
         
-        .tooltip-cover {
-          width: 60px;
-          height: 90px;
-          object-fit: cover;
-          border-radius: var(--radius-sm);
-          flex-shrink: 0;
+        .viz-hover-panel.visible {
+          border-left-color: var(--color-cosmic-purple);
+          box-shadow: -4px 0 20px rgba(157, 78, 221, 0.2);
         }
         
-        .tooltip-cover-placeholder {
-          width: 60px;
-          height: 90px;
-          background: rgba(139, 92, 246, 0.2);
-          border-radius: var(--radius-sm);
+        .hover-placeholder {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: var(--space-sm);
+          color: var(--color-text-muted);
+          font-size: 0.85rem;
+          text-align: center;
+        }
+        
+        .hover-placeholder span:first-child {
+          font-size: 1.5rem;
+          opacity: 0.5;
+        }
+        
+        .hover-cover {
+          width: 100%;
+          height: 180px;
+          margin-bottom: var(--space-md);
+          border-radius: var(--radius-md);
+          overflow: hidden;
+          background: rgba(0, 0, 0, 0.3);
+        }
+        
+        .hover-cover img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+        }
+        
+        .hover-title {
+          font-size: 0.95rem;
+          font-weight: 600;
+          color: var(--color-text-primary);
+          text-align: center;
+          line-height: 1.3;
+          margin-bottom: var(--space-sm);
+        }
+        
+        .hover-author {
+          font-size: 0.8rem;
+          color: var(--color-text-secondary);
+          text-align: center;
+          margin-bottom: var(--space-sm);
+        }
+        
+        .hover-rating {
+          color: var(--color-star-gold);
+          font-size: 1.1rem;
+          margin-bottom: var(--space-xs);
+        }
+        
+        .hover-status {
+          font-size: 0.85rem;
+          font-weight: 500;
+          margin-bottom: var(--space-sm);
+        }
+        
+        .hover-description {
+          font-size: 0.8rem;
+          color: var(--color-text-secondary);
+          line-height: 1.5;
+          text-align: center;
+          margin-top: var(--space-md);
+          padding-top: var(--space-md);
+          border-top: 1px solid var(--color-border);
+        }
+        
+        /* Modal */
+        .modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.85);
+          backdrop-filter: blur(10px);
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 1.5rem;
+          z-index: 1000;
+          padding: var(--space-lg);
+          animation: fadeIn 0.2s ease;
+        }
+        
+        .modal-content {
+          position: relative;
+          max-width: 900px;
+          max-height: 90vh;
+          overflow-y: auto;
+          background: var(--color-nebula-dark);
+          border: 1px solid var(--color-cosmic-purple);
+          border-radius: var(--radius-lg);
+          animation: slideUp var(--transition-base) ease;
+        }
+        
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .modal-close {
+          position: absolute;
+          top: var(--space-md);
+          right: var(--space-md);
+          background: var(--color-nebula);
+          border: none;
+          border-radius: var(--radius-full);
+          padding: var(--space-sm);
+          color: var(--color-text-secondary);
+          cursor: pointer;
+          z-index: 1;
+          transition: all var(--transition-fast);
+        }
+        
+        .modal-close:hover {
+          background: var(--color-cosmic-purple);
+          color: white;
+        }
+        
+        .modal-body {
+          display: flex;
+          gap: var(--space-xl);
+          padding: var(--space-xl);
+        }
+        
+        .modal-cover {
+          width: 220px;
           flex-shrink: 0;
         }
         
-        .tooltip-content {
+        .modal-cover img {
+          width: 100%;
+          border-radius: var(--radius-md);
+        }
+        
+        .cover-placeholder.large {
+          height: 330px;
+          border-radius: var(--radius-md);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--color-nebula);
+          color: var(--color-text-muted);
+        }
+        
+        .modal-info {
+          flex: 1;
+        }
+        
+        .modal-info h2 {
+          font-size: 1.75rem;
+          margin-bottom: var(--space-xs);
+        }
+        
+        .modal-author {
+          color: var(--color-text-secondary);
+          font-size: 1.1rem;
+          margin-bottom: var(--space-lg);
+        }
+        
+        .modal-meta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: var(--space-xl);
+          margin-bottom: var(--space-lg);
+        }
+        
+        .meta-item {
           display: flex;
           flex-direction: column;
-          gap: 4px;
-          min-width: 0;
+          gap: var(--space-xs);
         }
         
-        .tooltip-title {
+        .meta-label {
+          font-size: 0.7rem;
+          color: var(--color-text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        
+        .rating-stars {
+          display: flex;
+          gap: 2px;
+        }
+        
+        .modal-status {
+          display: flex;
+          align-items: center;
+          gap: var(--space-md);
+          margin-bottom: var(--space-lg);
+        }
+        
+        .status-badge {
+          padding: var(--space-xs) var(--space-md);
+          border-radius: var(--radius-sm);
           font-size: 0.9rem;
-          font-weight: 600;
-          color: var(--color-text-primary);
-          line-height: 1.2;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
+          font-weight: 500;
         }
         
-        .tooltip-author {
+        .status-badge.read {
+          background: rgba(0, 245, 212, 0.15);
+          color: var(--color-aurora);
+        }
+        
+        .status-badge.unread {
+          background: rgba(148, 163, 184, 0.15);
+          color: #94a3b8;
+        }
+        
+        .date-read {
+          display: flex;
+          align-items: center;
+          gap: var(--space-xs);
+          font-size: 0.85rem;
+          color: var(--color-text-muted);
+        }
+        
+        .modal-genres {
+          display: flex;
+          flex-wrap: wrap;
+          gap: var(--space-sm);
+          margin-bottom: var(--space-lg);
+        }
+        
+        .genre-tag {
+          padding: var(--space-xs) var(--space-sm);
+          background: var(--color-nebula);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-sm);
           font-size: 0.8rem;
           color: var(--color-text-secondary);
         }
         
-        .tooltip-meta {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-top: 4px;
+        .modal-description {
+          padding-top: var(--space-lg);
+          border-top: 1px solid var(--color-border);
         }
         
-        .tooltip-rating {
-          color: var(--color-star-gold);
-          font-size: 0.85rem;
-        }
-        
-        .tooltip-badge {
-          font-size: 0.7rem;
-          padding: 2px 8px;
-          border-radius: 10px;
-          font-weight: 500;
-        }
-        
-        .tooltip-badge.read {
-          background: rgba(34, 197, 94, 0.2);
-          color: #22c55e;
-        }
-        
-        .tooltip-badge.unread {
-          background: rgba(148, 163, 184, 0.2);
-          color: #94a3b8;
-        }
-        
-        .tooltip-genres {
-          display: flex;
-          gap: 4px;
-          flex-wrap: wrap;
-          margin-top: 4px;
-        }
-        
-        .tooltip-genre {
-          font-size: 0.65rem;
-          padding: 2px 6px;
-          background: rgba(139, 92, 246, 0.2);
-          border-radius: var(--radius-sm);
+        .modal-description h4 {
+          font-size: 0.9rem;
           color: var(--color-text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: var(--space-md);
+        }
+        
+        .modal-description p {
+          color: var(--color-text-secondary);
+          font-size: 0.95rem;
+          line-height: 1.7;
         }
         
         @media (max-width: 768px) {
@@ -1462,6 +1779,30 @@ const GalaxyView: React.FC<Props> = ({ points }) => {
           
           .filter-group {
             min-width: 100%;
+          }
+          
+          .viz-wrapper-galaxy {
+            /* Keep flex row on mobile but hide panel */
+            flex-direction: row;
+          }
+          
+          .viz-hover-panel {
+            /* Hide hover panel on mobile */
+            display: none;
+          }
+          
+          .galaxy-canvas {
+            /* Full width when panel is hidden */
+            width: 100%;
+          }
+          
+          .modal-body {
+            flex-direction: column;
+          }
+          
+          .modal-cover {
+            width: 150px;
+            margin: 0 auto;
           }
         }
       `}</style>
