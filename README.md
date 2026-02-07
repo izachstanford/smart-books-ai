@@ -1,4 +1,4 @@
-# 📚 SmartBooks AI
+# 📚 SmartBooksAI
 
 A RAG-powered book recommendation & analytics platform that transforms your Goodreads export into an intelligent semantic search engine.
 

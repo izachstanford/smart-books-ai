@@ -28,6 +28,7 @@ export interface Book {
   genre_primary?: string;  // ⭐ NEW: Coarse category
   cover_url: string | null;
   popularity_score?: number;  // ⭐ NEW: For ranking unread books
+  num_ratings?: number;  // ⭐ NEW: Number of public ratings for popularity
   series?: string | null;
   review?: string | null;
   embedding: number[] | null;
@@ -182,7 +183,7 @@ function App() {
           <div className="logo">
             <div className="logo-icon">📚</div>
             <div className="logo-text">
-              <h1>SmartBooks AI</h1>
+              <h1>SmartBooksAI</h1>
               <span className="tagline">Navigate Your Reading Universe</span>
             </div>
           </div>

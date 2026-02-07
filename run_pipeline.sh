@@ -1,5 +1,5 @@
 #!/bin/bash
-# SmartBooks AI - Data Pipeline Runner
+# SmartBooksAI - Data Pipeline Runner
 # Executes all four stages in sequence
 
 set -e  # Exit on error
@@ -54,6 +54,6 @@ echo "🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉�
 echo "   ALL STAGES COMPLETE!"
 echo "🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉"
 echo ""
-echo "Your SmartBooks AI data is ready!"
+echo "Your SmartBooksAI data is ready!"
 echo "Next step: Copy data to React app and start with 'npm start'"
 echo ""

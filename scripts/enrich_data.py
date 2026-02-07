@@ -58,7 +58,7 @@ def normalize_title(title):
 # --- EXECUTION ---
 def run_pipeline():
     print("=" * 60)
-    print("📚 SmartBooks AI - Data Enrichment Pipeline")
+    print("📚 SmartBooksAI - Data Enrichment Pipeline")
     print("=" * 60)
     
     # Load data

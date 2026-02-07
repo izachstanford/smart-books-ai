@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Html, Line } from '@react-three/drei';
 import { 
   Star, BookOpen, Heart, Zap, Target, 
-  Search, X, Loader, Brain, BookMarked
+  Search, X, Loader, Brain, BookMarked, Compass
 } from 'lucide-react';
 import { Book } from '../App';
 
@@ -20,7 +20,7 @@ interface RecommendationResult {
   reason?: string;
 }
 
-type DiscoverMode = 'search' | 'similar' | 'taste';
+type DiscoverMode = 'search' | 'similar' | 'taste' | 'branchout';
 
 // Configure transformers.js to use CDN for models
 env.allowLocalModels = false;
@@ -74,6 +74,17 @@ const projectTo3D = (embedding: number[], scale: number = 2): [number, number, n
     (embedding[50] * 10 + embedding[150] * 5) * scale,
     (embedding[200] * 10 + embedding[300] * 5) * scale,
   ];
+};
+
+// Calculate Euclidean distance between two 3D points
+const euclideanDistance = (
+  point1: [number, number, number], 
+  point2: [number, number, number]
+): number => {
+  const dx = point1[0] - point2[0];
+  const dy = point1[1] - point2[1];
+  const dz = point1[2] - point2[2];
+  return Math.sqrt(dx * dx + dy * dy + dz * dz);
 };
 
 // ========== 3D VISUALIZATION COMPONENTS ==========
@@ -530,6 +541,7 @@ const TasteFinder: React.FC<Props> = ({ books }) => {
   const [query, setQuery] = useState('');
   const [modelStatus, setModelStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [loadProgress, setLoadProgress] = useState(0);
+  const [useSemanticSearch, setUseSemanticSearch] = useState(true); // Toggle between semantic and keyword
   
   // Find Similar state
   const [selectedBooks, setSelectedBooks] = useState<Book[]>([]);
@@ -546,6 +558,10 @@ const TasteFinder: React.FC<Props> = ({ books }) => {
   const [sourceLabel, setSourceLabel] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [selectedBookDetail, setSelectedBookDetail] = useState<RecommendationResult | null>(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const resultsPerPage = 20;
   
   // Embedding pipeline ref
   const embedderRef = useRef<any>(null);
@@ -635,11 +651,90 @@ const TasteFinder: React.FC<Props> = ({ books }) => {
     setResults([]);
     setSourceEmbedding(null);
     setSourceLabel('');
+    setCurrentPage(1);
   }, [mode]);
 
-  // Search by Concept
+  // Keyword search (old-school text matching)
+  const handleKeywordSearch = useCallback(() => {
+    if (!query.trim()) return;
+    
+    setIsSearching(true);
+    
+    try {
+      const queryLower = query.toLowerCase();
+      const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
+      
+      // Score all books based on keyword matching
+      const scored = booksWithEmbeddings.map(book => {
+        let score = 0;
+        
+        // Exact title match (highest priority)
+        if (book.title.toLowerCase() === queryLower) {
+          score += 1.0;
+        }
+        // Title contains query
+        else if (book.title.toLowerCase().includes(queryLower)) {
+          score += 0.7;
+        }
+        // Title contains any query words
+        else {
+          const titleWords = queryWords.filter(w => book.title.toLowerCase().includes(w));
+          if (titleWords.length > 0) {
+            score += 0.3 * (titleWords.length / queryWords.length);
+          }
+        }
+        
+        // Author match
+        if (book.author.toLowerCase().includes(queryLower)) {
+          score += 0.4;
+        }
+        
+        // Description match
+        if (book.description) {
+          const descLower = book.description.toLowerCase();
+          if (descLower.includes(queryLower)) {
+            score += 0.2;
+          } else {
+            const descWords = queryWords.filter(w => descLower.includes(w));
+            if (descWords.length > 0) {
+              score += 0.1 * (descWords.length / queryWords.length);
+            }
+          }
+        }
+        
+        return {
+          book,
+          similarity: score, // Use similarity key for consistency
+        };
+      });
+      
+      const filtered = scored
+        .filter(r => r.similarity > 0)
+        .sort((a, b) => b.similarity - a.similarity);
+      
+      setSourceLabel(`"${query}" (Keyword Match)`);
+      setSourceEmbedding(null); // No embedding for keyword search
+      setResults(filtered);
+      setCurrentPage(1);
+    } catch (error) {
+      console.error('Keyword search error:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  }, [query, booksWithEmbeddings]);
+
+  // Search by Concept (Semantic)
   const handleSearchByConcept = useCallback(async () => {
-    if (!query.trim() || modelStatus !== 'ready') return;
+    if (!query.trim()) return;
+    
+    // Use keyword search if toggle is off
+    if (!useSemanticSearch) {
+      handleKeywordSearch();
+      return;
+    }
+    
+    // Require model for semantic search
+    if (modelStatus !== 'ready') return;
     
     setIsSearching(true);
     
@@ -656,18 +751,18 @@ const TasteFinder: React.FC<Props> = ({ books }) => {
           similarity: cosineSimilarity(queryEmbedding, book.embedding!),
         }))
         .filter(r => r.similarity > 0.2)
-        .sort((a, b) => b.similarity - a.similarity)
-        .slice(0, 20);
+        .sort((a, b) => b.similarity - a.similarity);
       
       setSourceEmbedding(queryEmbedding);
-      setSourceLabel(`"${query}"`);
+      setSourceLabel(`"${query}" (Semantic Match)`);
       setResults(scored);
+      setCurrentPage(1);
     } catch (error) {
       console.error('Search error:', error);
     } finally {
       setIsSearching(false);
     }
-  }, [query, booksWithEmbeddings, modelStatus]);
+  }, [query, booksWithEmbeddings, modelStatus, useSemanticSearch, handleKeywordSearch]);
 
   // Find Similar Books
   const handleFindSimilar = useCallback(async () => {
@@ -696,8 +791,7 @@ const TasteFinder: React.FC<Props> = ({ books }) => {
         book,
         similarity: cosineSimilarity(centroid, book.embedding!),
       }))
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, 20);
+      .sort((a, b) => b.similarity - a.similarity);
     
     const label = selectedBooks.length === 1 
       ? selectedBooks[0].title.substring(0, 30) + (selectedBooks[0].title.length > 30 ? '...' : '')
@@ -706,6 +800,7 @@ const TasteFinder: React.FC<Props> = ({ books }) => {
     setSourceEmbedding(centroid);
     setSourceLabel(label);
     setResults(scored);
+    setCurrentPage(1);
     setIsSearching(false);
   }, [selectedBooks, booksWithEmbeddings]);
 
@@ -733,8 +828,7 @@ const TasteFinder: React.FC<Props> = ({ books }) => {
         book,
         similarity: cosineSimilarity(centroid, book.embedding!),
       }))
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, 20);
+      .sort((a, b) => b.similarity - a.similarity);
     
     const ratingLabel = selectedRatings.length === 1 
       ? `${selectedRatings[0]}★ Books` 
@@ -743,8 +837,90 @@ const TasteFinder: React.FC<Props> = ({ books }) => {
     setSourceEmbedding(centroid);
     setSourceLabel(`Your Taste (${tasteProfileBooks.length} ${ratingLabel})`);
     setResults(scored);
+    setCurrentPage(1);
     setIsSearching(false);
   }, [tasteProfileBooks, unreadBooks, selectedRatings]);
+
+  // Branch Out - Find popular books in different parts of the map from your taste
+  const handleBranchOut = useCallback(async () => {
+    // Use ALL read books, not filtered by rating
+    const allReadBooks = readBooks;
+    
+    if (allReadBooks.length === 0) return;
+    
+    setIsSearching(true);
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const embeddings = allReadBooks
+      .map(b => b.embedding)
+      .filter((e): e is number[] => e !== null && e !== undefined);
+    
+    if (embeddings.length === 0) {
+      setIsSearching(false);
+      return;
+    }
+    
+    const centroid = computeCentroid(embeddings);
+    const centroid3D = projectTo3D(centroid);
+    
+    // Get genres of books you've read to filter them out
+    const myGenres = new Set(
+      allReadBooks
+        .map(b => b.genre_primary)
+        .filter((g): g is string => g !== undefined && g !== 'Unknown')
+    );
+    
+    console.log('Branch Out: My genres:', Array.from(myGenres));
+    console.log('Branch Out: Total unread books:', unreadBooks.length);
+    
+    // Score candidates by combining spatial distance with popularity
+    const candidates = unreadBooks
+      .filter(book => {
+        // Must have embedding for distance calculation
+        if (!book.embedding) return false;
+        // Filter out books in genres you've already explored
+        if (book.genre_primary && myGenres.has(book.genre_primary)) {
+          return false;
+        }
+        return true;
+      });
+    
+    console.log('Branch Out: Candidates after genre filter:', candidates.length);
+    
+    const scored = candidates
+      .map(book => {
+        const book3D = projectTo3D(book.embedding!);
+        const distance = euclideanDistance(centroid3D, book3D);
+        
+        // Normalize distance (0-50 range, higher is better for branching out)
+        const normalizedDistance = Math.min(distance / 50, 1);
+        
+        // Normalize popularity - use num_ratings if available, otherwise avg_rating as proxy
+        const popularity = book.num_ratings || (book.avg_rating > 0 ? book.avg_rating * 1000 : 100);
+        const normalizedPopularity = Math.min(Math.log10(popularity) / Math.log10(1000000), 1);
+        
+        // Branch Out Score: Prioritize distance and popularity
+        // 70% distance (far from comfort zone) + 30% popularity (well-regarded books)
+        const branchScore = (normalizedDistance * 0.7) + (normalizedPopularity * 0.3);
+        
+        return {
+          book,
+          similarity: branchScore, // Use similarity field for display
+          distance,
+          popularity,
+        };
+      })
+      .sort((a, b) => b.similarity - a.similarity);
+    
+    console.log('Branch Out: Final results:', scored.length);
+    
+    setSourceEmbedding(centroid);
+    setSourceLabel(`Branch Out (${allReadBooks.length} books read)`);
+    setResults(scored);
+    setCurrentPage(1);
+    setIsSearching(false);
+  }, [readBooks, unreadBooks]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -772,6 +948,26 @@ const TasteFinder: React.FC<Props> = ({ books }) => {
       }
       return [...prev, rating].sort((a, b) => b - a);
     });
+  };
+
+  // Pagination calculations
+  const totalPages = Math.ceil(results.length / resultsPerPage);
+  const startIndex = (currentPage - 1) * resultsPerPage;
+  const endIndex = startIndex + resultsPerPage;
+  const currentResults = results.slice(startIndex, endIndex);
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const goToPrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   return (
@@ -826,6 +1022,13 @@ const TasteFinder: React.FC<Props> = ({ books }) => {
           <Heart size={18} />
           <span>My Taste Profile</span>
         </button>
+        <button 
+          className={`mode-tab ${mode === 'branchout' ? 'active' : ''}`}
+          onClick={() => setMode('branchout')}
+        >
+          <Compass size={18} />
+          <span>Branch Out</span>
+        </button>
       </div>
 
       {/* Input Section */}
@@ -833,12 +1036,34 @@ const TasteFinder: React.FC<Props> = ({ books }) => {
         {/* Search by Concept */}
         {mode === 'search' && (
           <div className="search-input-section">
+            {/* Search Mode Toggle */}
+            <div className="search-mode-toggle">
+              <button 
+                className={`mode-toggle-btn ${useSemanticSearch ? 'active' : ''}`}
+                onClick={() => setUseSemanticSearch(true)}
+                title="AI-powered semantic search using embeddings"
+              >
+                <Brain size={16} />
+                <span>Semantic Search</span>
+              </button>
+              <button 
+                className={`mode-toggle-btn ${!useSemanticSearch ? 'active' : ''}`}
+                onClick={() => setUseSemanticSearch(false)}
+                title="Traditional keyword matching in titles and descriptions"
+              >
+                <Search size={16} />
+                <span>Keyword Search</span>
+              </button>
+            </div>
+            
             <div className="search-input-wrapper">
               <Search size={20} className="search-icon" />
               <input
                 type="text"
                 className="search-input"
-                placeholder="Describe what you're looking for..."
+                placeholder={useSemanticSearch 
+                  ? "Describe what you're looking for..." 
+                  : "Enter keywords to search titles..."}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyPress={handleKeyPress}
@@ -853,7 +1078,7 @@ const TasteFinder: React.FC<Props> = ({ books }) => {
             <button 
               className="action-btn primary"
               onClick={handleSearchByConcept}
-              disabled={isSearching || modelStatus !== 'ready' || !query.trim()}
+              disabled={isSearching || (useSemanticSearch && modelStatus !== 'ready') || !query.trim()}
             >
               {isSearching ? <Loader size={18} className="spinning" /> : <Zap size={18} />}
               Search
@@ -861,12 +1086,17 @@ const TasteFinder: React.FC<Props> = ({ books }) => {
             
             <div className="search-suggestions">
               <span>Try:</span>
-              {[
+              {(useSemanticSearch ? [
                 'meditation and mindfulness',
                 'epic space adventures', 
                 'overcoming personal challenges',
                 'building successful habits'
-              ].map(suggestion => (
+              ] : [
+                'Harry Potter',
+                'Foundation', 
+                'Atomic Habits',
+                'meditation'
+              ]).map(suggestion => (
                 <button 
                   key={suggestion}
                   className="suggestion-chip"
@@ -995,6 +1225,45 @@ const TasteFinder: React.FC<Props> = ({ books }) => {
             </div>
           </div>
         )}
+
+        {/* Branch Out */}
+        {mode === 'branchout' && (
+          <div className="branchout-input-section">
+            <div className="section-description">
+              <p>Discover popular, highly-rated books in unexplored parts of your galaxy—completely different genres and themes from your reading history</p>
+            </div>
+            
+            <div className="branch-out-info-card">
+              <div className="info-row">
+                <span className="info-label">📚 Your Reading Profile</span>
+                <span className="info-value">{readBooks.length} books</span>
+              </div>
+              <div className="info-row">
+                <span className="info-label">🎯 Algorithm</span>
+                <span className="info-value">70% Spatial Distance + 30% Popularity</span>
+              </div>
+              <div className="info-row">
+                <span className="info-label">🌍 Target</span>
+                <span className="info-value">Unexplored genres far from your taste zone</span>
+              </div>
+              <div className="info-row">
+                <span className="info-label">🚀 Goal</span>
+                <span className="info-value">Expand horizons with distant, popular books</span>
+              </div>
+            </div>
+            
+            <div className="taste-action-row">
+              <button 
+                className="action-btn primary branch-out-btn"
+                onClick={handleBranchOut}
+                disabled={isSearching || readBooks.length === 0}
+              >
+                {isSearching ? <Loader size={18} className="spinning" /> : <Compass size={18} />}
+                Explore New Territories
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Results Section */}
@@ -1013,24 +1282,96 @@ const TasteFinder: React.FC<Props> = ({ books }) => {
             sourceLabel={sourceLabel}
             sourceEmbedding={sourceEmbedding}
             sourceBooks={mode === 'similar' ? selectedBooks : undefined}
-            results={results}
+            results={results.slice(0, 5)}
             onSelectBook={(book) => {
               const result = results.find(r => r.book.id === book.id);
               if (result) setSelectedBookDetail(result);
             }}
           />
           
+          {/* Pagination Info */}
+          {results.length > 0 && (
+            <div className="pagination-info">
+              <span>Showing {startIndex + 1}-{Math.min(endIndex, results.length)} of {results.length.toLocaleString()} results</span>
+              {mode === 'branchout' && (
+                <span className="score-explanation">
+                  Score = 70% Spatial Distance + 30% Popularity
+                </span>
+              )}
+            </div>
+          )}
+          
           {/* Results Cards */}
           <div className="results-cards">
-            {results.map((result, idx) => (
+            {currentResults.map((result, idx) => (
               <ResultCard
                 key={result.book.id}
                 result={result}
-                rank={idx + 1}
+                rank={startIndex + idx + 1}
                 onClick={() => setSelectedBookDetail(result)}
               />
             ))}
           </div>
+          
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="pagination-controls">
+              <button 
+                className="pagination-btn"
+                onClick={goToPrevPage}
+                disabled={currentPage === 1}
+              >
+                ← Previous
+              </button>
+              <div className="pagination-pages">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum: number;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      className={`pagination-page ${currentPage === pageNum ? 'active' : ''}`}
+                      onClick={() => {
+                        setCurrentPage(pageNum);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+                {totalPages > 5 && currentPage < totalPages - 2 && (
+                  <>
+                    <span className="pagination-ellipsis">...</span>
+                    <button
+                      className="pagination-page"
+                      onClick={() => {
+                        setCurrentPage(totalPages);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                    >
+                      {totalPages}
+                    </button>
+                  </>
+                )}
+              </div>
+              <button 
+                className="pagination-btn"
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages}
+              >
+                Next →
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -1166,6 +1507,41 @@ const TasteFinder: React.FC<Props> = ({ books }) => {
           display: flex;
           flex-direction: column;
           gap: var(--space-md);
+        }
+        
+        .search-mode-toggle {
+          display: flex;
+          gap: var(--space-sm);
+          justify-content: center;
+          padding: var(--space-sm) 0;
+        }
+        
+        .mode-toggle-btn {
+          display: flex;
+          align-items: center;
+          gap: var(--space-xs);
+          padding: var(--space-sm) var(--space-lg);
+          background: var(--color-nebula);
+          border: 2px solid var(--color-border);
+          border-radius: var(--radius-md);
+          color: var(--color-text-secondary);
+          font-family: var(--font-main);
+          font-size: 0.9rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+        
+        .mode-toggle-btn:hover {
+          border-color: var(--color-cosmic-purple);
+          color: var(--color-text-primary);
+        }
+        
+        .mode-toggle-btn.active {
+          background: linear-gradient(135deg, rgba(157, 78, 221, 0.2), rgba(255, 107, 157, 0.1));
+          border-color: var(--color-cosmic-purple);
+          color: var(--color-cosmic-purple);
+          font-weight: 600;
         }
         
         .search-input-wrapper {
@@ -1476,6 +1852,144 @@ const TasteFinder: React.FC<Props> = ({ books }) => {
           color: var(--color-text-primary);
           font-family: var(--font-main);
           min-width: 200px;
+        }
+        
+        /* Branch Out */
+        .branch-out-info-card {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-md);
+          padding: var(--space-lg);
+          background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(157, 78, 221, 0.1));
+          border: 1px solid rgba(0, 212, 255, 0.3);
+          border-radius: var(--radius-lg);
+          margin-bottom: var(--space-lg);
+        }
+        
+        .info-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding-bottom: var(--space-sm);
+          border-bottom: 1px solid rgba(100, 116, 139, 0.2);
+        }
+        
+        .info-row:last-child {
+          border-bottom: none;
+          padding-bottom: 0;
+        }
+        
+        .info-label {
+          font-size: 0.85rem;
+          color: var(--color-text-secondary);
+          font-weight: 500;
+        }
+        
+        .info-value {
+          font-size: 0.85rem;
+          color: var(--color-text-primary);
+          font-weight: 600;
+        }
+        
+        .branch-out-btn {
+          background: linear-gradient(135deg, var(--color-cosmic-purple), #00d4ff);
+        }
+        
+        .branch-out-btn:hover:not(:disabled) {
+          box-shadow: 0 4px 20px rgba(0, 212, 255, 0.4);
+        }
+        
+        /* Pagination */
+        .pagination-info {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: var(--space-md);
+          background: rgba(100, 116, 139, 0.1);
+          border-radius: var(--radius-md);
+          font-size: 0.85rem;
+          color: var(--color-text-secondary);
+          margin-bottom: var(--space-lg);
+        }
+        
+        .score-explanation {
+          font-size: 0.75rem;
+          color: var(--color-text-muted);
+          font-style: italic;
+        }
+        
+        .pagination-controls {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: var(--space-md);
+          margin-top: var(--space-xl);
+          padding: var(--space-lg) 0;
+        }
+        
+        .pagination-btn {
+          padding: var(--space-sm) var(--space-lg);
+          background: var(--color-nebula);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-md);
+          color: var(--color-text-primary);
+          font-family: var(--font-main);
+          font-size: 0.9rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+        
+        .pagination-btn:hover:not(:disabled) {
+          background: var(--color-cosmic-purple);
+          border-color: var(--color-cosmic-purple);
+          transform: translateY(-1px);
+        }
+        
+        .pagination-btn:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+        
+        .pagination-pages {
+          display: flex;
+          gap: var(--space-xs);
+          align-items: center;
+        }
+        
+        .pagination-page {
+          width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--color-nebula);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-md);
+          color: var(--color-text-secondary);
+          font-family: var(--font-main);
+          font-size: 0.85rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+        
+        .pagination-page:hover {
+          background: rgba(157, 78, 221, 0.2);
+          border-color: var(--color-cosmic-purple);
+          color: var(--color-text-primary);
+        }
+        
+        .pagination-page.active {
+          background: var(--color-cosmic-purple);
+          border-color: var(--color-cosmic-purple);
+          color: white;
+          font-weight: 600;
+        }
+        
+        .pagination-ellipsis {
+          padding: 0 var(--space-xs);
+          color: var(--color-text-muted);
         }
         
         /* Results Section */
@@ -2028,6 +2542,22 @@ const TasteFinder: React.FC<Props> = ({ books }) => {
           .modal-cover {
             width: 150px;
             margin: 0 auto;
+          }
+          
+          .pagination-info {
+            flex-direction: column;
+            gap: var(--space-xs);
+            text-align: center;
+          }
+          
+          .pagination-controls {
+            flex-wrap: wrap;
+          }
+          
+          .pagination-pages {
+            order: 3;
+            width: 100%;
+            justify-content: center;
           }
         }
       `}</style>

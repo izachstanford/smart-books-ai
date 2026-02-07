@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * SmartBooks AI - Deployment Script
+ * SmartBooksAI - Deployment Script
  * Copies build folder to website-ai-with-zach/public/smart-books-ai/
  */
 const fs = require('fs-extra');
@@ -10,7 +10,7 @@ const SOURCE_BUILD = path.join(__dirname, 'build');
 const WEBSITE_PATH = path.join(__dirname, '..', 'website-ai-with-zach', 'public', 'smart-books-ai');
 
 async function deploy() {
-  console.log('🚀 SmartBooks AI - Deployment Script\n');
+  console.log('🚀 SmartBooksAI - Deployment Script\n');
 
   // Check if build folder exists
   if (!fs.existsSync(SOURCE_BUILD)) {
