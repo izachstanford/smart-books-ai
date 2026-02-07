@@ -49,7 +49,7 @@ def parse_date(date_str):
 
 def run_pipeline():
     print("=" * 70)
-    print("📊 SmartBooks AI - Analytics Pre-computation (v2)")
+    print("📊 SmartBooksAI - Analytics Pre-computation (v2)")
     print("=" * 70)
     
     # Load data

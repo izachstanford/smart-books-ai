@@ -36,7 +36,7 @@ def safe_year(val):
 
 def run_pipeline():
     print("=" * 70)
-    print("🧠 SmartBooks AI - Embedding Generation (v2)")
+    print("🧠 SmartBooksAI - Embedding Generation (v2)")
     print("=" * 70)
     
     # Load enriched data

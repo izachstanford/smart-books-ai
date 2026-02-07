@@ -1,9 +1,9 @@
-# Project Specification: SmartBooks AI
+# Project Specification: SmartBooksAI
 *A RAG-powered book recommendation & analytics platform*
 
 ## 1. Project Overview
 
-**SmartBooks AI** transforms a static Goodreads export into an intelligent book discovery platform. It combines semantic search, visual analytics, and AI-powered recommendations to help users explore their reading taste and discover their next great read.
+**SmartBooksAI** transforms a static Goodreads export into an intelligent book discovery platform. It combines semantic search, visual analytics, and AI-powered recommendations to help users explore their reading taste and discover their next great read.
 
 ### Mission
 Build a production-grade RAG application that:
@@ -818,7 +818,7 @@ NOT SENT:
 
 **A: Yes! Here's the parallel structure:**
 
-| StrideAI | SmartBooks AI | Purpose |
+| StrideAI | SmartBooksAI | Purpose |
 |----------|---------------|---------|
 | `AICoach.tsx` | `AIBookChat.tsx` | LLM-powered recommendations |
 | `ThePulse.tsx` | `Analytics.tsx` | Dashboard with charts |

@@ -1,1 +1,1 @@
-# SmartBooks AI Pipeline Scripts
+# SmartBooksAI Pipeline Scripts

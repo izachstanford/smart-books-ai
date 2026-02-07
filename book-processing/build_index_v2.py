@@ -16,7 +16,7 @@ COLLECTION_NAME = 'smart_books'
 
 def run_pipeline():
     print("=" * 70)
-    print("🗄️ SmartBooks AI - ChromaDB Index Builder (v2)")
+    print("🗄️ SmartBooksAI - ChromaDB Index Builder (v2)")
     print("=" * 70)
     
     # Load embeddings

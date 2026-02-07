@@ -161,7 +161,7 @@ def recalculate_analytics(books):
 
 def run_exclusions():
     print("=" * 70)
-    print("🔒 SmartBooks AI - Apply Exclusions")
+    print("🔒 SmartBooksAI - Apply Exclusions")
     print("=" * 70)
     
     # Load exclusions config

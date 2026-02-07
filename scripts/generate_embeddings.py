@@ -54,7 +54,7 @@ def create_embedding_text(row):
 
 def run_pipeline():
     print("=" * 60)
-    print("🧠 SmartBooks AI - Embedding Generation")
+    print("🧠 SmartBooksAI - Embedding Generation")
     print("=" * 60)
     
     # Load enriched data

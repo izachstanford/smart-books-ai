@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Smart Books AI - Deployment Script
+# SmartBooksAI - Deployment Script
 # Builds the app and deploys to website-ai-with-zach
 
 set -e  # Exit on any error
 
-echo "🚀 Starting Smart Books AI deployment..."
+echo "🚀 Starting SmartBooksAI deployment..."
 echo ""
 
 # Colors for output
@@ -72,6 +72,6 @@ echo -e "${YELLOW}📌 Next steps:${NC}"
 echo "  1. cd ../website-ai-with-zach"
 echo "  2. git status (to see changes)"
 echo "  3. git add public/smart-books-ai"
-echo "  4. git commit -m 'Deploy Smart Books AI'"
+echo "  4. git commit -m 'Deploy SmartBooksAI'"
 echo "  5. git push"
 echo ""

@@ -3,7 +3,7 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Html, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import { GalaxyPoint } from '../App';
-import { RotateCcw, Eye, EyeOff, Info, BookOpen, Table, Maximize2, X, Search, ChevronDown, Check, Pause, Play, Focus, Star, Clock } from 'lucide-react';
+import { Eye, EyeOff, Info, BookOpen, Maximize2, X, Search, ChevronDown, Check, Pause, Play, Focus, Star, Clock } from 'lucide-react';
 import BookTable from './BookTable';
 
 // Searchable dropdown component
@@ -263,7 +263,6 @@ const GalaxyView: React.FC<Props> = ({ points, books }) => {
   const [hoveredPoint, setHoveredPoint] = useState<GalaxyPoint | null>(null);
   const [showLabels, setShowLabels] = useState(false);
   const [resetTrigger, setResetTrigger] = useState(0);
-  const [showTable, setShowTable] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true); // Auto-rotate toggle
   const [isMouseOverViz, setIsMouseOverViz] = useState(false); // Track mouse over visualization
@@ -478,10 +477,17 @@ const GalaxyView: React.FC<Props> = ({ points, books }) => {
     setSelectionMode(false);
   };
 
-  const handleReset = () => {
-    setSelectedPoint(null);
-    setResetTrigger(t => t + 1);
-  };
+  // ESC key to exit fullscreen
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+    
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isFullscreen]);
 
   return (
     <div className="galaxy-view">
@@ -546,18 +552,6 @@ const GalaxyView: React.FC<Props> = ({ points, books }) => {
             <Maximize2 size={18} />
             {isFullscreen ? 'Exit' : 'Expand'}
           </button>
-          <button className="control-btn" onClick={handleReset} title="Reset camera">
-            <RotateCcw size={18} />
-            Reset
-          </button>
-          <button 
-            className={`control-btn ${showTable ? 'active' : ''}`}
-            onClick={() => setShowTable(!showTable)}
-            title="Toggle table view"
-          >
-            <Table size={18} />
-            Table
-          </button>
           <button 
             className={`control-btn ${selectionMode ? 'active selection-active' : ''}`}
             onClick={() => {
@@ -609,6 +603,22 @@ const GalaxyView: React.FC<Props> = ({ points, books }) => {
       </div>
 
       <div className={`galaxy-canvas-wrapper ${isFullscreen ? 'fullscreen' : ''}`}>
+        {/* Fullscreen Exit Button */}
+        {isFullscreen && (
+          <>
+            <button 
+              className="fullscreen-exit-btn"
+              onClick={() => setIsFullscreen(false)}
+              title="Exit fullscreen (ESC)"
+            >
+              <X size={24} />
+            </button>
+            <div className="fullscreen-hint">
+              Press <kbd>ESC</kbd> or click <X size={14} style={{ display: 'inline', verticalAlign: 'middle' }} /> to exit fullscreen
+            </div>
+          </>
+        )}
+        
         <div 
           className="viz-wrapper-galaxy"
           onMouseEnter={() => setIsMouseOverViz(true)}
@@ -863,11 +873,9 @@ const GalaxyView: React.FC<Props> = ({ points, books }) => {
       </div>
 
       {/* Data Table */}
-      {showTable && (
-        <BookTable 
-          books={filteredPoints} 
-        />
-      )}
+      <BookTable 
+        books={filteredPoints} 
+      />
 
       {/* Book Detail Modal */}
       {selectedPoint && (
@@ -1392,6 +1400,61 @@ const GalaxyView: React.FC<Props> = ({ points, books }) => {
           z-index: 1000;
           border-radius: 0;
           height: 100vh;
+        }
+        
+        .fullscreen-exit-btn {
+          position: absolute;
+          top: var(--space-lg);
+          right: var(--space-lg);
+          z-index: 1001;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 48px;
+          height: 48px;
+          background: rgba(10, 10, 26, 0.9);
+          border: 2px solid var(--color-border);
+          border-radius: var(--radius-full);
+          color: var(--color-text-secondary);
+          cursor: pointer;
+          transition: all var(--transition-fast);
+          backdrop-filter: blur(10px);
+        }
+        
+        .fullscreen-exit-btn:hover {
+          background: var(--color-cosmic-purple);
+          border-color: var(--color-cosmic-purple);
+          color: white;
+          transform: scale(1.1);
+        }
+        
+        .fullscreen-hint {
+          position: absolute;
+          bottom: var(--space-lg);
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 1001;
+          display: flex;
+          align-items: center;
+          gap: var(--space-xs);
+          padding: var(--space-sm) var(--space-lg);
+          background: rgba(10, 10, 26, 0.9);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-full);
+          color: var(--color-text-secondary);
+          font-size: 0.85rem;
+          backdrop-filter: blur(10px);
+          animation: fadeIn 0.3s ease;
+        }
+        
+        .fullscreen-hint kbd {
+          padding: 2px 8px;
+          background: var(--color-nebula);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-sm);
+          font-family: monospace;
+          font-size: 0.8rem;
+          color: var(--color-cosmic-purple);
         }
         
         .selection-overlay {

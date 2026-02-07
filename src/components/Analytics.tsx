@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { 
   TrendingUp, BookOpen, Star, Calendar, Award, Target, Users, 
-  Zap, Clock, Flame, BookMarked, BarChart2, PieChart as PieIcon
+  Zap, Clock, Flame, BookMarked, BarChart2, PieChart as PieIcon, Compass
 } from 'lucide-react';
 import { AnalyticsData, GalaxyPoint } from '../App';
 
@@ -297,6 +297,36 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
       }))
       .sort((a, b) => b.affinityScore - a.affinityScore);
   }, [genreComparisonData]);
+
+  // Underindexed genres - genres in benchmark that I read less of
+  const underindexedGenres = useMemo(() => {
+    // Get all genres from benchmark with significant presence (at least 1% of books)
+    const significantBenchmarkGenres = Object.entries(computedStats.allGenres)
+      .filter(([genre]) => genre !== 'Unknown')
+      .filter(([_, count]) => (count / galaxyData.length) >= 0.01) // At least 1% of database
+      .map(([genre, benchmarkCount]) => {
+        const myCount = computedStats.myGenres[genre] || 0;
+        const myPercent = (myCount / computedStats.readBooks.length) * 100;
+        const benchmarkPercent = (benchmarkCount / galaxyData.length) * 100;
+        
+        // Calculate underindex score (negative = underindexed)
+        const gap = myPercent - benchmarkPercent;
+        
+        return {
+          genre,
+          myPercent,
+          benchmarkPercent,
+          gap,
+          myCount,
+          benchmarkCount,
+        };
+      })
+      .filter(g => g.gap < -1) // Only show genres where we're at least 1% behind
+      .sort((a, b) => a.gap - b.gap) // Sort by biggest gap (most negative first)
+      .slice(0, 4); // Top 4 underindexed
+    
+    return significantBenchmarkGenres;
+  }, [computedStats, galaxyData]);
 
   return (
     <div className="analytics">
@@ -819,6 +849,55 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
                 where you differ significantly from average
               </span>
             </div>
+          </div>
+        </div>
+
+        {/* Underindexed Genres - Expansion Opportunities */}
+        <div className="underindexed-section">
+          <h3 style={{ fontSize: '1.1rem', marginBottom: 'var(--space-md)', display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+            <Compass size={18} />
+            Expansion Opportunities
+          </h3>
+          <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: 'var(--space-lg)' }}>
+            Genres that are popular in the database but underrepresented in your reading
+          </p>
+          <div className="underindexed-grid">
+            {underindexedGenres.map((genre, i) => (
+              <div key={genre.genre} className="underindexed-card">
+                <div className="underindexed-header">
+                  <span className="underindexed-genre">{genre.genre}</span>
+                  <span className="underindexed-badge">
+                    {Math.abs(genre.gap).toFixed(1)}% gap
+                  </span>
+                </div>
+                <div className="underindexed-comparison">
+                  <div className="underindexed-bar-row">
+                    <span className="bar-row-label">You</span>
+                    <div className="underindexed-bar-track">
+                      <div 
+                        className="underindexed-bar-fill you"
+                        style={{ width: `${Math.min((genre.myPercent / Math.max(genre.benchmarkPercent, 1)) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <span className="bar-row-value">{genre.myPercent.toFixed(1)}%</span>
+                  </div>
+                  <div className="underindexed-bar-row">
+                    <span className="bar-row-label">Top 10K</span>
+                    <div className="underindexed-bar-track">
+                      <div 
+                        className="underindexed-bar-fill benchmark"
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                    <span className="bar-row-value">{genre.benchmarkPercent.toFixed(1)}%</span>
+                  </div>
+                </div>
+                <div className="underindexed-stats">
+                  <span>You: {genre.myCount} books</span>
+                  <span>Available: {genre.benchmarkCount} books</span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -1464,6 +1543,106 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
           color: var(--color-text-secondary);
         }
         
+        /* Underindexed Genres Section */
+        .underindexed-section {
+          margin-top: var(--space-xl);
+          padding: var(--space-xl);
+          background: var(--gradient-card);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-lg);
+        }
+        
+        .underindexed-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: var(--space-lg);
+        }
+        
+        .underindexed-card {
+          background: rgba(157, 78, 221, 0.05);
+          border: 1px solid rgba(157, 78, 221, 0.2);
+          border-radius: var(--radius-md);
+          padding: var(--space-lg);
+        }
+        
+        .underindexed-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: var(--space-md);
+        }
+        
+        .underindexed-genre {
+          font-size: 1rem;
+          font-weight: 600;
+          color: var(--color-text-primary);
+        }
+        
+        .underindexed-badge {
+          padding: 4px 10px;
+          background: linear-gradient(135deg, ${COLORS.orange}, ${COLORS.pink});
+          border-radius: var(--radius-full);
+          font-size: 0.7rem;
+          font-weight: 600;
+          color: white;
+        }
+        
+        .underindexed-comparison {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-sm);
+          margin-bottom: var(--space-md);
+        }
+        
+        .underindexed-bar-row {
+          display: grid;
+          grid-template-columns: 60px 1fr 50px;
+          align-items: center;
+          gap: var(--space-sm);
+        }
+        
+        .bar-row-label {
+          font-size: 0.75rem;
+          color: var(--color-text-muted);
+        }
+        
+        .underindexed-bar-track {
+          height: 10px;
+          background: rgba(100, 116, 139, 0.2);
+          border-radius: 5px;
+          overflow: hidden;
+        }
+        
+        .underindexed-bar-fill {
+          height: 100%;
+          border-radius: 5px;
+          transition: width 0.5s ease;
+        }
+        
+        .underindexed-bar-fill.you {
+          background: linear-gradient(90deg, ${COLORS.gold}, ${COLORS.amber});
+        }
+        
+        .underindexed-bar-fill.benchmark {
+          background: linear-gradient(90deg, ${COLORS.blue}, ${COLORS.cyan});
+        }
+        
+        .bar-row-value {
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: var(--color-text-secondary);
+          text-align: right;
+        }
+        
+        .underindexed-stats {
+          display: flex;
+          justify-content: space-between;
+          padding-top: var(--space-sm);
+          border-top: 1px solid var(--color-border);
+          font-size: 0.7rem;
+          color: var(--color-text-muted);
+        }
+        
         /* Custom Tooltip */
         .custom-tooltip {
           background: rgba(10, 10, 26, 0.95);
@@ -1494,6 +1673,10 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
           .chart-card.chart-large {
             grid-column: span 1;
           }
+          
+          .underindexed-grid {
+            grid-template-columns: 1fr;
+          }
         }
         
         @media (max-width: 768px) {
@@ -1510,6 +1693,14 @@ const Analytics: React.FC<Props> = ({ data, galaxyData }) => {
           
           .affinity-item {
             grid-template-columns: 80px 1fr 50px;
+          }
+          
+          .underindexed-grid {
+            grid-template-columns: 1fr;
+          }
+          
+          .underindexed-bar-row {
+            grid-template-columns: 50px 1fr 45px;
           }
         }
       `}</style>

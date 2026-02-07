@@ -12,7 +12,7 @@ interface Props {
 }
 
 /**
- * Architecture - Visual journey through the SmartBooks AI pipeline
+ * Architecture - Visual journey through the SmartBooksAI pipeline
  */
 const Architecture: React.FC<Props> = ({ analytics }) => {
   const [expandedCode, setExpandedCode] = useState<string | null>(null);
@@ -95,7 +95,7 @@ const Architecture: React.FC<Props> = ({ analytics }) => {
 
       {/* Hero Flowchart */}
       <div className="hero-flowchart">
-        <div className="flowchart-title">How SmartBooks AI Works</div>
+        <div className="flowchart-title">How SmartBooksAI Works</div>
         <div className="flowchart-container">
           {stages.map((stage, index) => (
             <React.Fragment key={stage.id}>
